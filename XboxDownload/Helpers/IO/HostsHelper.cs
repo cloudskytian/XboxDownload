@@ -37,9 +37,14 @@ namespace XboxDownload.Helpers.IO
         {
             if (OperatingSystem.IsWindows())
             {
+                FileInfo fi = new(PathHelper.SystemHostsPath);
                 try
                 {
-                    await File.WriteAllTextAsync(PathHelper.SystemHostsPath, content);
+                    if ((fi.Attributes & FileAttributes.ReadOnly) != 0)
+                        fi.Attributes &= ~FileAttributes.ReadOnly;
+                    await using var fs = fi.Open(FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+                    await using StreamWriter sw = new(fs);
+                    await sw.WriteAsync(content);
                 }
                 catch (Exception ex)
                 {

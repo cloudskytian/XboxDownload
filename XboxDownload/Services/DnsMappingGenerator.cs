@@ -159,13 +159,13 @@ public static class DnsMappingGenerator
             if (!HostRules.TryGetValue(hostKey, out var value)) continue;
             
             if (includeHosts)
-                patterns.AddRange(value.Hosts.Select(h => $@"[^\s]+\s+{Regex.Escape(h)}.*\r?\n"));
+                patterns.AddRange(value.Hosts.Select(h => $@"[^\s]+\s+{Regex.Escape(h)}(\s+.*)?\r?\n"));
             
             if (includeRedirects)
-                patterns.AddRange(value.Redirects.Select(h => $@"[^\s]+\s+{Regex.Escape(h)}.*\r?\n"));
+                patterns.AddRange(value.Redirects.Select(h => $@"[^\s]+\s+{Regex.Escape(h)}(\s+.*)?\r?\n"));
             
             if (includeBlacklist)
-                patterns.AddRange(value.Blacklist.Select(h => $@"[^\s]+\s+{Regex.Escape(h)}.*\r?\n"));
+                patterns.AddRange(value.Blacklist.Select(h => $@"[^\s]+\s+{Regex.Escape(h)}(\s+.*)?\r?\n"));
         }
 
         return string.Join("|", patterns);
