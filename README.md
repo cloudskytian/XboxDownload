@@ -21,6 +21,7 @@ Xbox主机是根据使用者IP分配游戏下载域名，国内IP使用assets1.x
 
 下载链接
 ```
+Github: https://github.com/skydevil88/XboxDownload/releases
 百度网盘: https://pan.baidu.com/s/1ZqBvWjpGYZXBL8WaitMLCQ?pwd=q3cp 提取码：q3cp
 源码：https://github.com/skydevil88/XboxDownload
 ```

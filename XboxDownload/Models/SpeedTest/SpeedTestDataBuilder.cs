@@ -55,7 +55,6 @@ public static class SpeedTestDataBuilder
 
         new SpeedTestFile("Akamai-Xbox", "Akamai", ResourceHelper.GetString("SpeedTest.TestFile.Akamai-Xbox"), "http://xvcf1.xboxlive.com/Z/routing/extraextralarge.txt"),
         new SpeedTestFile("Akamai-Ps", "Akamai", ResourceHelper.GetString("SpeedTest.TestFile.Akamai-Ps"), "http://gst.prod.dl.playstation.net/networktest/get_192m"),
-        new SpeedTestFile("Akamai-Ns", "Akamai", ResourceHelper.GetString("SpeedTest.TestFile.Akamai-Ns"), "http://ctest-dl-lp1.cdn.nintendo.net/30m"),
-        new SpeedTestFile("Akamai-Ea", "Akamai", ResourceHelper.GetString("SpeedTest.TestFile.Akamai-Ea"), "http://origin-a.akamaihd.net/Origin-Client-Download/origin/live/OriginThinSetup.exe"),
+        new SpeedTestFile("Akamai-Ns", "Akamai", ResourceHelper.GetString("SpeedTest.TestFile.Akamai-Ns"), "http://ctest-dl-lp1.cdn.nintendo.net/30m")
     ];
 }

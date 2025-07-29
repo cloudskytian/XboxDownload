@@ -29,26 +29,58 @@ public static class MbrHelper
 
     [DllImport("Kernel32.dll")]
     static extern uint SetFilePointer(IntPtr handle, int offset, IntPtr distance, uint flag);
-
+    
     public static byte[] ReadMbr(string deviceId)
     {
-        var diskHandle = CreateFile(deviceId, GenericRead, 0, IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
-        var buffer = new byte[2048];
-        uint length = 0;
-        _ = SetFilePointer(diskHandle, 0, IntPtr.Zero, FileBegin);
-        ReadFile(diskHandle, buffer, 2048, ref length, IntPtr.Zero);
-        CloseHandle(diskHandle);
-        return buffer;
+        var diskHandle = CreateFile(deviceId, GenericRead, FileShareRead | FileShareWrite, IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+        if (diskHandle == IntPtr.Zero || diskHandle.ToInt64() == -1)
+            return [];
+
+        try
+        {
+            var buffer = new byte[2048];
+            uint length = 0;
+            var pos = SetFilePointer(diskHandle, 0, IntPtr.Zero, FileBegin);
+            if (pos == 0xFFFFFFFF || !ReadFile(diskHandle, buffer, (uint)buffer.Length, ref length, IntPtr.Zero) || length != buffer.Length)
+                return [];
+
+            return buffer;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reading MBR: {ex.Message}");
+            return [];
+        }
+        finally
+        {
+            CloseHandle(diskHandle);
+        }
     }
 
     public static bool WriteMbr(string deviceId, byte[] mbr)
     {
-        var diskHandle = CreateFile(deviceId, GenericRead | GenericWrite, FileShareRead | FileShareWrite, 0, OpenExisting, 0, 0);
-        var length = 0;
-        _ = SetFilePointer(diskHandle, 0, IntPtr.Zero, FileBegin);
-        var b = WriteFile(diskHandle, mbr, mbr.Length, ref length, 0);
-        CloseHandle(diskHandle);
-        return b;
+        var diskHandle = CreateFile(deviceId, GenericWrite, FileShareRead | FileShareWrite, IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+        if (diskHandle == IntPtr.Zero || diskHandle.ToInt64() == -1)
+            return false;
+
+        try
+        {
+            var length = 0;
+            var pos = SetFilePointer(diskHandle, 0, IntPtr.Zero, FileBegin);
+            if (pos == 0xFFFFFFFF)
+                return false;
+
+            return WriteFile(diskHandle, mbr, mbr.Length, ref length, IntPtr.Zero) && length == mbr.Length;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error writing MBR: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            CloseHandle(diskHandle);
+        }
     }
 
     public static byte[] HexToByte(string byteStr)

@@ -267,7 +267,6 @@
     <x:String x:Key="SpeedTest.TestFile.Akamai-Xbox">Xbox Test File</x:String>
     <x:String x:Key="SpeedTest.TestFile.Akamai-Ps">PS Test Files</x:String>
     <x:String x:Key="SpeedTest.TestFile.Akamai-Ns">NS Test Files</x:String>
-    <x:String x:Key="SpeedTest.TestFile.Akamai-Ea">Origin(EA)</x:String>
     <x:String x:Key="SpeedTest.DownloadTestFile">Test File</x:String>
     <x:String x:Key="SpeedTest.GettingDownloadLink">Getting download link, please wait...</x:String>
     <x:String x:Key="SpeedTest.ClearHosts">Clear Hosts</x:String>

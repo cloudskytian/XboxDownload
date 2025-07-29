@@ -197,7 +197,7 @@ namespace XboxDownload.Helpers.IO
         /// Matches and removes the section injected by XboxDownload:
         /// </summary>
         [GeneratedRegex($@"# --- Begin {nameof(XboxDownload)} Section ---[\s\S]*?# --- End {nameof(XboxDownload)} Section ---|# Added by XboxDownload[\s\S]*?# End of XboxDownload", RegexOptions.Multiline)]
-        private static partial Regex RemoveAppSectionRegex();
+        public static partial Regex RemoveAppSectionRegex();
 
         #endregion
 

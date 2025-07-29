@@ -267,7 +267,6 @@
     <x:String x:Key="SpeedTest.TestFile.Akamai-Xbox">Xbox测速文件</x:String>
     <x:String x:Key="SpeedTest.TestFile.Akamai-Ps">PS测速文件</x:String>
     <x:String x:Key="SpeedTest.TestFile.Akamai-Ns">NS测速文件</x:String>
-    <x:String x:Key="SpeedTest.TestFile.Akamai-Ea">Origin(EA)</x:String>
     <x:String x:Key="SpeedTest.DownloadTestFile">测试下载文件</x:String>
     <x:String x:Key="SpeedTest.GettingDownloadLink">正在获取下载链接，请稍候...</x:String>
     <x:String x:Key="SpeedTest.ClearHosts">清除系统 hosts 文件</x:String>

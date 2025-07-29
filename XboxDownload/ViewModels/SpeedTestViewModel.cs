@@ -546,6 +546,12 @@ public partial class SpeedTestViewModel : ViewModelBase
         {
             var content = await File.ReadAllTextAsync(PathHelper.SystemHostsPath);
 
+            if (HostsHelper.RemoveAppSectionRegex().IsMatch(content) && !Ioc.Default.GetRequiredService<ServiceViewModel>().IsListening)
+            {
+                content = HostsHelper.RemoveAppSectionRegex().Replace(content, "").Trim();
+                await File.WriteAllTextAsync(PathHelper.SystemHostsPath, content);
+            }
+
             // 拆分为行
             var lines = content.Split(["\r\n", "\n"], StringSplitOptions.None);
 

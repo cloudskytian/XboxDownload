@@ -77,7 +77,11 @@ public partial class StorageViewModel : ObservableObject
     private async Task ConvertStorageAsync(string parameter)
     {
         if (SelectedEntry == null) return;
-        var mbrHex = await Task.Run(() => MbrHelper.ByteToHex(MbrHelper.ReadMbr(SelectedEntry.DeviceId)));
+        
+        var mbrBytes = MbrHelper.ReadMbr(SelectedEntry.DeviceId);
+        if (mbrBytes.Length == 0) return;
+        
+        var mbrHex = await Task.Run(() => MbrHelper.ByteToHex(mbrBytes));
 
         if (IsRepair)
         {
@@ -177,6 +181,8 @@ public partial class StorageViewModel : ObservableObject
                 if (string.IsNullOrEmpty(deviceId)) continue;
 
                 var mbrBytes = MbrHelper.ReadMbr(deviceId);
+                if (mbrBytes.Length == 0) continue;
+                
                 var mbrHex = MbrHelper.ByteToHex(mbrBytes);
                 var index = Convert.ToInt32(mo["Index"]);
                 var model = mo.Properties["Model"].Value?.ToString()?.Trim() ?? string.Empty;
@@ -331,6 +337,7 @@ public partial class StorageViewModel : ObservableObject
                 string.Format(ResourceHelper.GetString("Storage.RenameFileFailed"), ex.Message),
                 Icon.Error);
         }
+        IsRename = false;
     }
 
     public event Action? RequestFocus;
