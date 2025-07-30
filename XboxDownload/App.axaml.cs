@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using XboxDownload.Models;
@@ -21,28 +22,43 @@ namespace XboxDownload;
 public partial class App : Application
 {
     public static TrayIconService TrayIconService { get; private set; } = new();
-    
     public static AppSettings Settings { get; private set; } = new();
-    
     public static IServiceProvider? Services { get; private set; }
-    
+
+    // Program.cs 会在启动时赋值
+    public static uint ShowWindowMessageId;
+
+    // Win32 API
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, WndProcDelegate newProc);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    private const int GWLP_WNDPROC = -4;
+    private WndProcDelegate? _newWndProc;
+    private IntPtr _oldWndProc;
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
-
         Settings = SettingsManager.Load();
-
         LoadLanguage();
     }
 
     public override void OnFrameworkInitializationCompleted()
     {
         TrayIconService.Initialize();
-    
-        // Initialize service container
-        Services = Setup.ConfigureServices(); 
 
-        // Register global services
+        // 初始化服务容器
+        Services = Setup.ConfigureServices();
+
+        // 注册全局 ViewModel
         Ioc.Default.ConfigureServices(new ServiceCollection()
             .AddSingleton<MainWindowViewModel>()
             .AddSingleton<ServiceViewModel>()
@@ -56,7 +72,7 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Set the application theme
+            // 设置主题
             var themeVariant = Settings.Theme switch
             {
                 "Light" => ThemeVariant.Light,
@@ -67,40 +83,64 @@ public partial class App : Application
 
             DisableAvaloniaDataAnnotationValidation();
 
-            // Get the MainWindowViewModel instance via dependency injection
+            // 创建主窗口
             var mainWindowVm = Ioc.Default.GetRequiredService<MainWindowViewModel>();
-            desktop.MainWindow = new MainWindow
-            {
-                DataContext = mainWindowVm
-            };
-        
+            desktop.MainWindow = new MainWindow { DataContext = mainWindowVm };
+
+            // 启动参数：开机启动
             if (desktop.Args?.Contains("Startup") == true)
             {
-                desktop.MainWindow.ShowInTaskbar = false; 
+                desktop.MainWindow.ShowInTaskbar = false;
                 desktop.MainWindow.WindowState = WindowState.Minimized;
-                // Start the listening service
-                Ioc.Default.GetRequiredService<ServiceViewModel>()
-                    .ToggleListeningCommand.Execute(null);
-                Dispatcher.UIThread.Post(() => { desktop.MainWindow.Hide(); }, DispatcherPriority.Background);
+                Ioc.Default.GetRequiredService<ServiceViewModel>().ToggleListeningCommand.Execute(null);
+                Dispatcher.UIThread.Post(() => desktop.MainWindow.Hide(), DispatcherPriority.Background);
+            }
+
+            // 仅 Windows 下挂钩 Win32 消息
+            if (OperatingSystem.IsWindows())
+            {
+                var handle = desktop.MainWindow.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+                if (handle != IntPtr.Zero)
+                {
+                    _newWndProc = WndProc;
+                    _oldWndProc = GetWindowLongPtr(handle, GWLP_WNDPROC);
+                    SetWindowLongPtr(handle, GWLP_WNDPROC, _newWndProc);
+                }
             }
         }
 
         base.OnFrameworkInitializationCompleted();
     }
-    
+
+    private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
+    {
+        // 收到 Program 广播的唤醒消息
+        if (msg != ShowWindowMessageId) return CallWindowProc(_oldWndProc, hWnd, msg, wParam, lParam);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                var win = desktop.MainWindow;
+                if (win != null)
+                {
+                    win.Show();
+                    win.WindowState = WindowState.Normal;
+                    win.Activate();
+                }
+            }
+        });
+        return IntPtr.Zero;
+
+    }
+
     private void DisableAvaloniaDataAnnotationValidation()
     {
-        // Get an array of plugins to remove
         var dataValidationPluginsToRemove =
             BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
-
-        // remove each entry found
         foreach (var plugin in dataValidationPluginsToRemove)
-        {
             BindingPlugins.DataValidators.Remove(plugin);
-        }
     }
-    
+
     private void LoadLanguage()
     {
         var culture = Settings.Culture;
@@ -111,7 +151,6 @@ public partial class App : Application
                 "zh" or "zh-CN" or "zh-Hans" or "zh-Hans-CN" or "zh-SG" or "zh-Hans-SG" => "zh-Hans",
                 _ => "en-US"
             };
-            
             Settings.Culture = culture;
             SettingsManager.Save(Settings);
         }
@@ -120,9 +159,6 @@ public partial class App : Application
         {
             Source = new Uri($"avares://{nameof(XboxDownload)}/Resources/Languages/{culture}.axaml")
         };
-
-        var dictionaries = Resources.MergedDictionaries;
-
-        dictionaries.Add(langDict);
+        Resources.MergedDictionaries.Add(langDict);
     }
 }

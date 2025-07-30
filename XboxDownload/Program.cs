@@ -8,55 +8,48 @@ namespace XboxDownload;
 
 sealed class Program
 {
-    private static Mutex? _mutex;
-    
+    // 全局唯一的唤醒窗口消息 ID
+    private static uint _showWindowMsg;
+
+    private const string MutexName = $"Global\\{nameof(XboxDownload)}_Mutex";
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern uint RegisterWindowMessage(string lpString);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
     [STAThread]
     public static void Main(string[] args)
     {
-        const string mutexName = $"Global\\{nameof(XboxDownload)}_Mutex";
+        // 注册全局唯一的消息（第一个实例和后续实例都要注册）
+        _showWindowMsg = RegisterWindowMessage("XboxDownload_ShowWindow");
 
-        _mutex = new Mutex(true, mutexName, out var createdNew);
+        using var mutex = new Mutex(true, MutexName, out var createdNew);
 
         if (!createdNew)
         {
             if (OperatingSystem.IsWindows())
-                BringExistingInstanceToFront();
+            {
+                // 给第一个实例发送唤醒消息
+                PostMessage((IntPtr)0xFFFF, _showWindowMsg, IntPtr.Zero, IntPtr.Zero); // HWND_BROADCAST
+            }
             else
+            {
                 Console.WriteLine("程序已在运行。");
+            }
             return;
         }
 
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        // 把消息 ID 传给 App，用于监听
+        App.ShowWindowMessageId = _showWindowMsg;
 
-        _mutex.ReleaseMutex();
+        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
-    
-    // Avalonia configuration, don't remove; also used by visual designer.
+
     private static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
-    
-    private static void BringExistingInstanceToFront()
-    {
-        var current = Process.GetCurrentProcess();
-        var others = Process.GetProcessesByName(current.ProcessName);
-
-        foreach (var process in others)
-        {
-            if (process.Id == current.Id) continue;
-            var hWnd = process.MainWindowHandle;
-            if (hWnd == IntPtr.Zero) continue;
-            ShowWindow(hWnd, 5); // SW_SHOW
-            SetForegroundWindow(hWnd);
-            break;
-        }
-    }
-
-    [DllImport("user32.dll")]
-    private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 }
