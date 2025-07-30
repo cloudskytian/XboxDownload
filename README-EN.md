@@ -10,6 +10,8 @@ Web Store：https://xbox.skydevil.xyz
 
 Download Xbox console game via PC: https://www.youtube.com/watch?v=3F499kh_jfk
 
+Download App: https://github.com/skydevil88/XboxDownload/releases
+
 Service
 ---
 ![Service](images/EN/Service1.png)
@@ -35,6 +37,3 @@ Storage
 About
 ---
 ![Hosts](images/EN/About.png)
-
-
-

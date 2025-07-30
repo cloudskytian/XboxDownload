@@ -31,7 +31,7 @@ Github: https://github.com/skydevil88/XboxDownload/releases
 ---
 Xbox正在下载，请先暂停，完成设置后再继续。
 
-一、启动下载助手，选中测速-导入IP，找你家附近IP测试速度（可以使用查找功能），右键使用指定IP。
+一、启动下载助手，选中测速-导入IP，找你家附近IP测试速度（可以使用搜索位置功能），右键使用指定IP。
 
 ![图2](images/SpeedTest.png)
 
