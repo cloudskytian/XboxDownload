@@ -8,14 +8,12 @@ namespace XboxDownload;
 
 sealed class Program
 {
-    private static Mutex? _mutex;
-    
     [STAThread]
     public static void Main(string[] args)
     {
         const string mutexName = $"Global\\{nameof(XboxDownload)}_Mutex";
 
-        _mutex = new Mutex(true, mutexName, out var createdNew);
+        var mutex = new Mutex(true, mutexName, out var createdNew);
 
         if (!createdNew)
         {
@@ -28,7 +26,7 @@ sealed class Program
 
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
 
-        _mutex.ReleaseMutex();
+        mutex.ReleaseMutex();
     }
     
     // Avalonia configuration, don't remove; also used by visual designer.
