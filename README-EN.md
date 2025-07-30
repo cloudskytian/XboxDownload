@@ -16,7 +16,7 @@ Service
 ---
 ![Service](images/EN/Service1.png)
 Upload games to Xbox console via PC
-![Service](doc/Service02.png)
+![Service](images/EN/Service02.png)
 
 Speed Test
 ---
