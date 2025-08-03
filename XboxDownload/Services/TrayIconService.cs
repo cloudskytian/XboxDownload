@@ -1,10 +1,11 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using System;
+using System.IO;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Platform;
-using CommunityToolkit.Mvvm.DependencyInjection;
 using XboxDownload.Helpers.Resources;
 using XboxDownload.ViewModels;
 
@@ -112,6 +113,51 @@ public class TrayIconService : IDisposable
                 
                 var toolsVm = mainVm.ToolsViewModel;
                 toolsVm.Dispose();
+            }
+            
+            // macOS/Linux 退出时清理 Socket 文件
+            if (!OperatingSystem.IsWindows())
+            {
+                try
+                {
+                    using var client = new Socket(AddressFamily.Unix, SocketType.Stream, 0);
+                    var path = Path.Combine(Path.GetTempPath(), $"{nameof(XboxDownload)}.sock");
+                    // ReSharper disable once MethodHasAsyncOverload
+                    client.Connect(new UnixDomainSocketEndPoint(path));
+                }
+                catch
+                {
+                    // ignored
+                }
+
+                try
+                {
+                    if (Program.Listener is not null)
+                    {
+                        try { Program.Listener.Shutdown(SocketShutdown.Both); }
+                        catch
+                        {
+                            // ignored
+                        }
+                        Program.Listener.Close();
+                        Program.Listener = null;
+                    }
+                }
+                catch
+                {
+                    // ignored
+                }
+                
+                try
+                {
+                    var socketPath = Path.Combine(Path.GetTempPath(), $"{nameof(XboxDownload)}.sock");
+                    if (File.Exists(socketPath))
+                        File.Delete(socketPath);
+                }
+                catch
+                {
+                    // ignored
+                }
             }
             
             desktop.Shutdown();

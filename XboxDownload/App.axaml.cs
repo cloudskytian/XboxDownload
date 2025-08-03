@@ -1,16 +1,17 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Globalization;
 using System.Linq;
-using Avalonia.Controls;
-using Avalonia.Threading;
+using System.Runtime.InteropServices;
 using XboxDownload.Models;
 using XboxDownload.Services;
 using XboxDownload.ViewModels;
@@ -21,28 +22,60 @@ namespace XboxDownload;
 public partial class App : Application
 {
     public static TrayIconService TrayIconService { get; private set; } = new();
-    
     public static AppSettings Settings { get; private set; } = new();
-    
     public static IServiceProvider? Services { get; private set; }
-    
+
+    // Windows 唤醒消息 ID（Program 赋值）
+    public static uint ShowWindowMessageId;
+    // macOS/Linux 唤醒回调（Program 赋值）
+    public static Action? UnixWakeupRequested;
+
+    // Win32 API
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, WndProcDelegate newProc);
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
+    [DllImport("user32.dll")]
+    private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    private const int GWLP_WNDPROC = -4;
+    private WndProcDelegate? _newWndProc;
+    private IntPtr _oldWndProc;
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
-
         Settings = SettingsManager.Load();
-
         LoadLanguage();
+    }
+    
+    private void LoadLanguage()
+    {
+        var culture = Settings.Culture;
+        if (culture is not ("en-US" or "zh-Hans"))
+        {
+            culture = CultureInfo.CurrentUICulture.Name switch
+            {
+                "zh" or "zh-CN" or "zh-Hans" or "zh-Hans-CN" or "zh-SG" or "zh-Hans-SG" => "zh-Hans",
+                _ => "en-US"
+            };
+            Settings.Culture = culture;
+            SettingsManager.Save(Settings);
+        }
+
+        var langDict = new ResourceInclude(new Uri($"resm:Styles?assembly={nameof(XboxDownload)}"))
+        {
+            Source = new Uri($"avares://{nameof(XboxDownload)}/Resources/Languages/{culture}.axaml")
+        };
+        Resources.MergedDictionaries.Add(langDict);
     }
 
     public override void OnFrameworkInitializationCompleted()
     {
         TrayIconService.Initialize();
-    
-        // Initialize service container
-        Services = Setup.ConfigureServices(); 
+        Services = Setup.ConfigureServices();
 
-        // Register global services
         Ioc.Default.ConfigureServices(new ServiceCollection()
             .AddSingleton<MainWindowViewModel>()
             .AddSingleton<ServiceViewModel>()
@@ -56,7 +89,7 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Set the application theme
+            // 设置主题
             var themeVariant = Settings.Theme switch
             {
                 "Light" => ThemeVariant.Light,
@@ -67,62 +100,65 @@ public partial class App : Application
 
             DisableAvaloniaDataAnnotationValidation();
 
-            // Get the MainWindowViewModel instance via dependency injection
             var mainWindowVm = Ioc.Default.GetRequiredService<MainWindowViewModel>();
-            desktop.MainWindow = new MainWindow
+            desktop.MainWindow = new MainWindow { DataContext = mainWindowVm };
+
+            // macOS / Linux 唤醒绑定
+            UnixWakeupRequested = () => Dispatcher.UIThread.Post(ShowMainWindow);
+
+            // Windows 消息挂钩
+            if (OperatingSystem.IsWindows())
             {
-                DataContext = mainWindowVm
-            };
-        
+                var handle = desktop.MainWindow.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+                if (handle != IntPtr.Zero)
+                {
+                    _newWndProc = WndProc;
+                    _oldWndProc = GetWindowLongPtr(handle, GWLP_WNDPROC);
+                    SetWindowLongPtr(handle, GWLP_WNDPROC, _newWndProc);
+                }
+            }
+
+            // 开机启动
             if (desktop.Args?.Contains("Startup") == true)
             {
-                desktop.MainWindow.ShowInTaskbar = false; 
+                desktop.MainWindow.ShowInTaskbar = false;
                 desktop.MainWindow.WindowState = WindowState.Minimized;
-                // Start the listening service
-                Ioc.Default.GetRequiredService<ServiceViewModel>()
-                    .ToggleListeningCommand.Execute(null);
-                Dispatcher.UIThread.Post(() => { desktop.MainWindow.Hide(); }, DispatcherPriority.Background);
+                Ioc.Default.GetRequiredService<ServiceViewModel>().ToggleListeningCommand.Execute(null);
+                Dispatcher.UIThread.Post(() => desktop.MainWindow.Hide(), DispatcherPriority.Background);
             }
         }
 
         base.OnFrameworkInitializationCompleted();
     }
-    
-    private void DisableAvaloniaDataAnnotationValidation()
-    {
-        // Get an array of plugins to remove
-        var dataValidationPluginsToRemove =
-            BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
 
-        // remove each entry found
-        foreach (var plugin in dataValidationPluginsToRemove)
+    private void ShowMainWindow()
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            BindingPlugins.DataValidators.Remove(plugin);
+            var win = desktop.MainWindow;
+            if (win != null)
+            {
+                win.Show();
+                win.WindowState = WindowState.Normal;
+                win.Activate();
+            }
         }
     }
-    
-    private void LoadLanguage()
+
+    private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
-        var culture = Settings.Culture;
-        if (culture is not ("en-US" or "zh-Hans"))
+        if (msg == ShowWindowMessageId)
         {
-            culture = CultureInfo.CurrentUICulture.Name switch
-            {
-                "zh" or "zh-CN" or "zh-Hans" or "zh-Hans-CN" or "zh-SG" or "zh-Hans-SG" => "zh-Hans",
-                _ => "en-US"
-            };
-            
-            Settings.Culture = culture;
-            SettingsManager.Save(Settings);
+            Dispatcher.UIThread.Post(ShowMainWindow);
+            return IntPtr.Zero;
         }
+        return CallWindowProc(_oldWndProc, hWnd, msg, wParam, lParam);
+    }
 
-        var langDict = new ResourceInclude(new Uri($"resm:Styles?assembly={nameof(XboxDownload)}"))
-        {
-            Source = new Uri($"avares://{nameof(XboxDownload)}/Resources/Languages/{culture}.axaml")
-        };
-
-        var dictionaries = Resources.MergedDictionaries;
-
-        dictionaries.Add(langDict);
+    private void DisableAvaloniaDataAnnotationValidation()
+    {
+        var plugins = BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
+        foreach (var plugin in plugins)
+            BindingPlugins.DataValidators.Remove(plugin);
     }
 }

@@ -4,7 +4,9 @@ using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Styling;
 using CommunityToolkit.Mvvm.Input;
 using System;
+using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DynamicData;
@@ -156,6 +158,51 @@ public partial class MainWindowViewModel(
                 
                 var toolsVm = mainVm.ToolsViewModel;
                 toolsVm.Dispose();
+            }
+            
+            // macOS/Linux 退出时清理 Socket 文件
+            if (!OperatingSystem.IsWindows())
+            {
+                try
+                {
+                    using var client = new Socket(AddressFamily.Unix, SocketType.Stream, 0);
+                    var path = Path.Combine(Path.GetTempPath(), $"{nameof(XboxDownload)}.sock");
+                    // ReSharper disable once MethodHasAsyncOverload
+                    client.Connect(new UnixDomainSocketEndPoint(path));
+                }
+                catch
+                {
+                    // ignored
+                }
+
+                try
+                {
+                    if (Program.Listener is not null)
+                    {
+                        try { Program.Listener.Shutdown(SocketShutdown.Both); }
+                        catch
+                        {
+                            // ignored
+                        }
+                        Program.Listener.Close();
+                        Program.Listener = null;
+                    }
+                }
+                catch
+                {
+                    // ignored
+                }
+                
+                try
+                {
+                    var socketPath = Path.Combine(Path.GetTempPath(), $"{nameof(XboxDownload)}.sock");
+                    if (File.Exists(socketPath))
+                        File.Delete(socketPath);
+                }
+                catch
+                {
+                    // ignored
+                }
             }
             
             desktop.Shutdown();
