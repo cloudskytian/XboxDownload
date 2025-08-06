@@ -589,7 +589,7 @@ public partial class ServiceViewModel : ObservableObject
         {
             Logs.Insert(0, new ServiceModels(method, content, ip));
 
-            if (Logs.Count > 10_000)
+            if (Logs.Count > 1_000_000)
                 Logs.RemoveAt(Logs.Count - 1);
         });
     }
