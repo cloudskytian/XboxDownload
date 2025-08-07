@@ -584,12 +584,12 @@ public partial class ServiceViewModel : ObservableObject
     public void AddLog(string method, string content, string ip)
     {
         if (!IsLogging) return;
-        
+
+        var item = new ServiceModels(method, content, ip);
         Dispatcher.UIThread.Post(() =>
         {
-            Logs.Insert(0, new ServiceModels(method, content, ip));
-
-            if (Logs.Count > 1_000_000)
+            Logs.Insert(0, item);
+            if (Logs.Count > 10_000)
                 Logs.RemoveAt(Logs.Count - 1);
         });
     }
@@ -643,7 +643,8 @@ public partial class ServiceViewModel : ObservableObject
             await using var stream = await result.OpenWriteAsync();
             await using var writer = new StreamWriter(stream);
 
-            foreach (var log in Logs)
+            var copiedLogs = new ObservableCollection<ServiceModels>(Logs);
+            foreach (var log in copiedLogs)
             {
                 await writer.WriteLineAsync($"{log.RequestMethod} | {log.Content} | {log.ClientIp} | {log.TimestampFormatted}");
             }
