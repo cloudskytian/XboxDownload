@@ -195,6 +195,7 @@
                     </StackPanel>
                     <CheckBox Content="{DynamicResource Service.Service.FilterIPv6Domains}"
                               IsChecked="{Binding IsIPv6DomainFilterEnabled}"/>
+                    <!--
                     <StackPanel Orientation="Horizontal" Spacing="5">
                         <CheckBox Content="{DynamicResource Service.Service.LocalProxy}"
                                   IsChecked="{Binding IsLocalProxyEnabled}"/>
@@ -208,6 +209,7 @@
                                        Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                         </Button>
                     </StackPanel>
+                    //-->
                     <CheckBox Content="{DynamicResource Service.Service.FastestAkamaiIp}" 
                               ToolTip.Tip="{DynamicResource Service.Service.FastestAkamaiIpTip}"
                               IsEnabled="{Binding IsDnsReady}"
