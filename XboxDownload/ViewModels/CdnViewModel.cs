@@ -75,6 +75,7 @@ public partial class CdnViewModel : ObservableObject
             }
             else
             {
+                AkamaiHost2 += Environment.NewLine;
                 await File.WriteAllTextAsync(_serviceViewModel.AkamaiFilePath, AkamaiHost2);
             }
         }

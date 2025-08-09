@@ -22,7 +22,7 @@
             </HeaderedContentControl>
                 
             <HeaderedContentControl Grid.Column="1" Header="{DynamicResource Cdn.CustomDomain}">
-                <TextBox BorderThickness="0" Text="{Binding AkamaiHost2}"
+                <TextBox BorderThickness="0" Text="{Binding AkamaiHost2}" AcceptsReturn="True"
                          Watermark="{DynamicResource Cdn.CustomDomain.Watermark}"/>
             </HeaderedContentControl>
         </Grid>

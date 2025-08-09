@@ -195,28 +195,22 @@
                     </StackPanel>
                     <CheckBox Content="{DynamicResource Service.Service.FilterIPv6Domains}"
                               IsChecked="{Binding IsIPv6DomainFilterEnabled}"/>
-                    <!--
                     <StackPanel Orientation="Horizontal" Spacing="5">
                         <CheckBox Content="{DynamicResource Service.Service.LocalProxy}"
                                   IsChecked="{Binding IsLocalProxyEnabled}"/>
-                        <Button Classes="LinkLabel" IsVisible="{Binding !IsListening}">
+                        <Button Classes="LinkLabel" Click="ShowLocalProxyDialogAsync"
+                                IsEnabled="{Binding !IsListening}">
                             <TextBlock Text="{DynamicResource Service.Service.Settings}" 
                                        Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                         </Button>
-                        <Button Classes="LinkLabel" IsVisible="{Binding IsListening}"
-                                IsEnabled="{Binding IsLocalProxyEnabled}">
-                            <TextBlock Text="{DynamicResource Service.Service.FlushDns}"
-                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                        </Button>
                     </StackPanel>
-                    //-->
                     <CheckBox Content="{DynamicResource Service.Service.FastestAkamaiIp}" 
                               ToolTip.Tip="{DynamicResource Service.Service.FastestAkamaiIpTip}"
                               IsEnabled="{Binding IsDnsReady}"
                               IsChecked="{Binding IsFastestAkamaiIp}"
                               Command="{Binding FastestAkamaiIpCommand}"/>
                     
-                    <Button Content="{Binding ListeningStatusText }" Margin="0,20, 0, 0"
+                    <Button Content="{Binding ListeningStatusText}" Margin="0,20, 0, 0"
                             MinWidth="140" MinHeight="60" CornerRadius="8"
                             HorizontalAlignment="Center"
                             VerticalContentAlignment="Center"

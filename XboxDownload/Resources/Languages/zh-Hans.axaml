@@ -90,7 +90,6 @@
     <x:String x:Key="Service.Service.SecureDns.TencentCloud">腾讯云</x:String>
     <x:String x:Key="Service.Service.SecureDns.Qihoo360">奇虎360</x:String>
     <x:String x:Key="Service.Service.Settings">设置</x:String>
-    <x:String x:Key="Service.Service.FlushDns">清理</x:String>
     <x:String x:Key="Service.Service.FilterIPv6Domains">过滤 IPv6 域名查询</x:String>
     <x:String x:Key="Service.Service.LocalProxy">本地代理服务</x:String>
     <x:String x:Key="Service.Service.FastestAkamaiIp">自动优选 Akamai IP</x:String>
@@ -160,6 +159,15 @@
     <x:String x:Key="Service.SecureDns.Test">测试</x:String>
     <x:String x:Key="Service.SecureDns.DohProxyNote">DoH 无法直连时，可启用代理转发请求。</x:String>
     <x:String x:Key="Service.SecureDns.DohDescription">DNS over HTTPS (DoH) 是一种使用 HTTPS 加密 DNS 请求和响应的安全协议。通过使用基于 HTTPS 的 DNS，可以帮助保护您的在线隐私和安全，并确保您的 DNS 请求不被拦截或篡改。</x:String>
+    
+    <x:String x:Key="Service.LocalProxy.Title">本地代理服务</x:String>
+    <x:String x:Key="Service.LocalProxy.ProxyRules">代理规则</x:String>
+    <x:String x:Key="Service.LocalProxy.ProxyRulesWatermark">*example.com | SNI (可留空) | IP (可留空)&#x0a;*example.com -> example.com (使用指定域名解释IP地址)</x:String>
+    <x:String x:Key="Service.LocalProxy.SelectService">选择服务</x:String>
+    <x:String x:Key="Service.LocalProxy.DoHServers">DoH 服务器</x:String>
+    <x:String x:Key="Service.LocalProxy.TestDohServers">测试 DoH 服务器</x:String>
+    <x:String x:Key="Service.LocalProxy.Save">保存</x:String>
+    <x:String x:Key="Service.LocalProxy.Wrap">此功能可以抵御部分网站被 SNI 阻断攻击无法访问的问题。整个代理过程在用户自己的电脑上完成，不涉及任何第三方服务。</x:String>
     
     <x:String x:Key="Service.SecureDns.Delete">删除</x:String>
     <x:String x:Key="Service.SecureDns.Enable">启用</x:String>

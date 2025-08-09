@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Versioning;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.DependencyInjection;
@@ -262,6 +263,15 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
                 }
             }
         }
+        
+        if (App.Settings.IsLocalProxyEnabled)
+        {
+            foreach (var hostName in TcpConnectionListener.DicSniProxy2.Keys)
+            {
+                wildcardV4Temp.TryAdd(hostName, _localIpRecords!);
+                wildcardV6Temp.TryAdd(hostName, EmptyIpRecords);
+            }
+        }
 
         // Sort wildcard maps by key length descending
         Ipv4WildcardHostMap.AddRange(wildcardV4Temp.OrderByDescending(x => x.Key.Length).ThenByDescending(x => x.Key));
@@ -499,9 +509,17 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
             AddMapping("packagespc.xboxlive.com", _localIpRecords, EmptyIpRecords);
             AddMapping("www.msftconnecttest.com", _localIpRecords, EmptyIpRecords);
         }
-
-        await LoadForceEncryptedDomainMapAsync();
+        
+        if (App.Settings.IsLocalProxyEnabled)
+        {
+            foreach (var hostname in TcpConnectionListener.DicSniProxy.Keys)
+            {
+                AddMapping(hostname, _localIpRecords, EmptyIpRecords);
+            }
+        }
+        
         await LoadHostAndAkamaiMapAsync();
+        await LoadForceEncryptedDomainMapAsync();
         serviceViewModel.IsDnsReady = true;
         _ = Task.Run(() => Listening(iPEndPoint));
     }

@@ -9,7 +9,7 @@ namespace XboxDownload.Services;
 
 public static class SettingsManager
 {
-    private static readonly string SettingsFilePath = PathHelper.GetLocalFilePath("settings.json");
+    private static readonly string SettingsFilePath = PathHelper.GetLocalFilePath("Settings.json");
 
     public static AppSettings Load()
     {

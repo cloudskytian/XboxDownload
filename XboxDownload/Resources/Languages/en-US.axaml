@@ -90,7 +90,6 @@
     <x:String x:Key="Service.Service.SecureDns.TencentCloud">Tencent Cloud (China)</x:String>
     <x:String x:Key="Service.Service.SecureDns.Qihoo360">Qihoo 360 (China)</x:String>
     <x:String x:Key="Service.Service.Settings">Settings</x:String>
-    <x:String x:Key="Service.Service.FlushDns">Flush Dns</x:String>
     <x:String x:Key="Service.Service.FilterIPv6Domains">Filter IPv6 Domains</x:String>
     <x:String x:Key="Service.Service.LocalProxy">Local Proxy</x:String>
     <x:String x:Key="Service.Service.FastestAkamaiIp">Fastest Akamai IP</x:String>
@@ -104,7 +103,7 @@
     <x:String x:Key="Service.Service.BackgroundLimit">Background Limit</x:String>
     <x:String x:Key="Service.Service.ForegroundLimit">Foreground Limit</x:String>
     <x:String x:Key="Service.Service.WarningMessage">The system has restricted the bandwidth used for downloads. {0}Please search for “Delivery Optimization Settings” in Windows and remove the restriction.</x:String>
-
+    
     <x:String x:Key="Service.Service.FastestAkamaiIpTip">Automatically selects the fastest IPv4 node from Akamai's optimized IP list, supporting platforms such as Xbox, PlayStation, Nintendo Switch, EA, Battle.net, Epic, Ubisoft, Riot Games, Rockstar, and Spotify.&#x0a;&#x0a;Tip: After switching IPs, please pause any ongoing game downloads and resume the installation to ensure the new node takes effect.</x:String>
     <x:String x:Key="Service.Service.StopListening">Stop Listening</x:String>
     <x:String x:Key="Service.Service.InvalidIpTitle">Invalid IP</x:String>
@@ -161,6 +160,15 @@
     <x:String x:Key="Service.SecureDns.DohProxyNote">Use proxy if DoH fails.</x:String>
     <x:String x:Key="Service.SecureDns.DohDescription">DNS over HTTPS (DoH) is a secure protocol that encrypts DNS requests and responses using HTTPS. By using HTTPS-based DNS, it helps protect your online privacy and security, ensuring your DNS requests are not intercepted or tampered with.</x:String>
     
+    <x:String x:Key="Service.LocalProxy.Title">Local Proxy Service</x:String>
+    <x:String x:Key="Service.LocalProxy.ProxyRules">Proxy Rules</x:String>
+    <x:String x:Key="Service.LocalProxy.ProxyRulesWatermark">*example.com | SNI (optional) | IP (optional)&#x0a;*example.com -> example.com (use specified domain to resolve IP address)</x:String>
+    <x:String x:Key="Service.LocalProxy.SelectService">Select Service</x:String>
+    <x:String x:Key="Service.LocalProxy.DoHServers">DoH Servers</x:String>
+    <x:String x:Key="Service.LocalProxy.TestDohServers">Test DoH Servers</x:String>
+    <x:String x:Key="Service.LocalProxy.Save">Save</x:String>
+    <x:String x:Key="Service.LocalProxy.Wrap">This feature can help resist certain websites being blocked by SNI-based attacks, preventing access issues. The entire proxy process is completed on the user's own computer and does not involve any third-party services.</x:String>
+
     <x:String x:Key="Service.SecureDns.Delete">Delete</x:String>
     <x:String x:Key="Service.SecureDns.Enable">Enable</x:String>
     <x:String x:Key="Service.SecureDns.Domain">Domain (Right-click to delete)</x:String>

@@ -18,7 +18,7 @@ public static class SpeedTestService
 {
     public static async Task<IpItem?> FindFastestOrBestAkamaiIpAsync(List<IpItem> items, CancellationToken cancellationToken)
     {
-        items = items.OrderBy(_ => Guid.NewGuid()).Take(30).ToList();
+        items = items.OrderBy(_ => Random.Shared.Next()).Take(30).ToList();
 
         string[] test =
         [

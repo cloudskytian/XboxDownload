@@ -42,9 +42,30 @@ public partial class ServiceView : UserControl
         try
         {
             if (VisualRoot is not Window window) return;
-            if (DataContext is ServiceViewModel svm)
+            if (DataContext is ServiceViewModel serviceVm)
             {
-                var dialog = new Dialog.DohServerDialog(svm);
+                var dialog = new Dialog.DohServerDialog(serviceVm);
+                await dialog.ShowDialog(window);
+            }
+            else
+            {
+                Console.WriteLine("Current DataContext is not ServiceViewModel");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in show dialog: {ex}");
+        }
+    }
+    
+    private async void ShowLocalProxyDialogAsync(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (VisualRoot is not Window window) return;
+            if (DataContext is ServiceViewModel serviceVm)
+            {
+                var dialog = new Dialog.LocalProxyDialog(serviceVm);
                 await dialog.ShowDialog(window);
             }
             else

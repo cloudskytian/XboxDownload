@@ -93,10 +93,6 @@ public partial class ResolveDomainDialogViewModel : ObservableObject
         {
             App.Settings.DohServerUseProxyId = useProxyId;
             SettingsManager.Save(App.Settings);
-
-            var selectedDohServer = _serviceViewModel.SelectedDohServer;
-            _serviceViewModel.SelectedDohServer = null;
-            _serviceViewModel.SelectedDohServer = selectedDohServer;
         }
         
         CloseDialog?.Invoke();
@@ -154,6 +150,13 @@ public partial class ResolveDomainDialogViewModel : ObservableObject
                 Icon.Error);
             RequestFocus?.Invoke("Host");
             return;
+        }
+        
+        var useProxyId = (from option in ResolveHostMappings where option.UseProxy select option.Id).ToList();
+        if (!useProxyId.SequenceEqual(App.Settings.DohServerUseProxyId))
+        {
+            App.Settings.DohServerUseProxyId = useProxyId;
+            SettingsManager.Save(App.Settings);
         }
         
         foreach (var selected in ResolveHostMappings.Where(o => o.IsSelect))

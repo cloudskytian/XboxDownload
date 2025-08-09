@@ -140,10 +140,8 @@
                         </Grid>
                     </HeaderedContentControl>
                 </Border>
-               
                 <TextBlock Grid.Row="2" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,5"
                            Text="{DynamicResource Service.SecureDns.DohDescription}"/>
-               
             </Grid>
         </TabItem>
 

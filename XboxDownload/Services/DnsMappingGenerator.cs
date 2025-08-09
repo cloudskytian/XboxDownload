@@ -44,7 +44,7 @@ public static class DnsMappingGenerator
         ["XboxApp"] = (
             "MS Store App",
             [
-                "dl.delivery.mp.microsoft.com", "tlu.dl.delivery.mp.microsoft.com"
+                "dl.delivery.mp.microsoft.com", "tlu.dl.delivery.mp.microsoft.com", "1d.tlu.dl.delivery.mp.microsoft.com"
             ],
             [],
             []

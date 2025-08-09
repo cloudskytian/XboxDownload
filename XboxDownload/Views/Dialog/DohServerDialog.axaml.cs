@@ -9,12 +9,12 @@ namespace XboxDownload.Views.Dialog;
 
 public partial class DohServerDialog : Window
 {
-    public DohServerDialog()
+    private DohServerDialog()
     {
         InitializeComponent();
     }
     
-    public DohServerDialog(ServiceViewModel serviceViewModel)  : this()
+    public DohServerDialog(ServiceViewModel serviceViewModel) : this()
     {
         InitializeComponent();
         

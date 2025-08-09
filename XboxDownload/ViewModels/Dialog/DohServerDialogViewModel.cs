@@ -102,6 +102,13 @@ public partial class DohServerDialogViewModel : ObservableObject
             selected.Website1 = selected.Website2 = selected.Website3 = null;
             selected.Tip1 = selected.Tip2 = selected.Tip3 = string.Empty;
         }
+        
+        var useProxyId = (from option in SpeedTestMappings where option.UseProxy select option.Id).ToList();
+        if (!useProxyId.SequenceEqual(App.Settings.DohServerUseProxyId))
+        {
+            App.Settings.DohServerUseProxyId = useProxyId;
+            SettingsManager.Save(App.Settings);
+        }
 
         var tasks = SpeedTestMappings
             .Where(o => o.IsSelect)

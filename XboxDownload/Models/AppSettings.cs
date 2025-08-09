@@ -35,6 +35,7 @@ public class AppSettings
     public List<string> DohServerUseProxyId { get; set; } = [];
     public string LocalIp { get; set; } = string.Empty;
     public bool IsLogging { get; set; } = true;
+    public List<string> SniProxyId{ get; set; } = ["Google", "Cloudflare", "DNS.SB"];
     public string SearchLocation { get; set; } = string.Empty;
     public bool UploadAkamaiIpsEnabled{ get; set; } = true;
     public string AkamaiCdnIp { get; set; } = string.Empty;

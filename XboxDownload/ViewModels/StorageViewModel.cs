@@ -33,7 +33,7 @@ public partial class StorageViewModel : ObservableObject
 {
     private readonly ConcurrentDictionary<string, MbrCacheEntry> _mbrMap = new();
 
-    private static readonly string MbrFilePath = PathHelper.GetLocalFilePath("mbr_backup.json");
+    private static readonly string MbrFilePath = PathHelper.GetLocalFilePath("MbrBackup.json");
 
     public StorageViewModel()
     {

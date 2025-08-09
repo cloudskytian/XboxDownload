@@ -34,17 +34,18 @@ namespace XboxDownload.ViewModels;
 
 public partial class ServiceViewModel : ObservableObject
 {
-    public readonly string ForceEncryptionDomainFilePath = PathHelper.GetLocalFilePath("force_encryption_domain.json");
-    public readonly string HostFilePath = PathHelper.GetLocalFilePath("host.json");
+    public readonly string ForceEncryptionDomainFilePath = PathHelper.GetLocalFilePath("ForceEncryptionDomain.json");
+    public readonly string HostFilePath = PathHelper.GetLocalFilePath("Host.json");
     public readonly string AkamaiFilePath = PathHelper.GetLocalFilePath("Akamai.txt");
+    public readonly string SniProxyFilePath = PathHelper.GetLocalFilePath("SniProxy.json");
     
     public readonly DnsConnectionListener DnsConnectionListener;
-    private readonly TcpConnectionListener _tcpConnectionListener;
+    public readonly TcpConnectionListener TcpConnectionListener;
     
     public ServiceViewModel()
     {
         DnsConnectionListener = new DnsConnectionListener(this);
-        _tcpConnectionListener = new TcpConnectionListener(this);
+        TcpConnectionListener = new TcpConnectionListener(this);
 
         var adapters = NetworkAdapterHelper.GetValidAdapters();
         foreach (var adapter in adapters)
@@ -62,7 +63,7 @@ public partial class ServiceViewModel : ObservableObject
             if (string.IsNullOrEmpty(App.Settings.LocalIp))
                 continue;
 
-            // If the IP matches exactly, or if no adapter is selected and the subnet prefix matches (e.g., 192.168.1.)
+            // If the IP matches exactly, or if no adapter is selected and the subnet prefix matches (e.g., 192.168.x.)
             if (string.Equals(App.Settings.LocalIp, ipv4) ||
                 (SelectedAdapter == null && App.Settings.LocalIp.StartsWith(ipv4[..(ipv4.LastIndexOf('.') + 1)])))
             {
@@ -94,7 +95,7 @@ public partial class ServiceViewModel : ObservableObject
         }
     }
 
-    private bool _isIPv6Support;
+    public bool IsIPv6Support;
 
     private async Task TestIPv6()
     {
@@ -106,8 +107,8 @@ public partial class ServiceViewModel : ObservableObject
             IPAddress.Parse("2606:4700:4700::1111") //Cloudflare 
         ];
         var fastestIp = await HttpClientHelper.GetFastestIp(ips, 443, 3000);
-        _isIPv6Support = fastestIp != null;
-        if (_isIPv6Support)
+        IsIPv6Support = fastestIp != null;
+        if (IsIPv6Support)
         {
             AddLog(ResourceHelper.GetString("Service.Service.NoticeTitle"), ResourceHelper.GetString("Service.Service.IPv6SupportMessage"), "System");
         }
@@ -187,8 +188,8 @@ public partial class ServiceViewModel : ObservableObject
     private ListeningIpOption? _selectedListeningIp;
     
     [ObservableProperty]
-    private bool _isDnsServiceEnabled = App.Settings.IsDnsServiceEnabled, _isHttpServiceEnabled = App.Settings.IsHttpServiceEnabled, 
-        _isSystemSleepPrevented =App.Settings.IsSystemSleepPrevented, _isSetLocalDnsEnabled = App.Settings.IsSetLocalDnsEnabled,
+    private bool _isDnsServiceEnabled = App.Settings.IsDnsServiceEnabled, _isHttpServiceEnabled = App.Settings.IsHttpServiceEnabled,
+        _isSetLocalDnsEnabled = App.Settings.IsSetLocalDnsEnabled, _isSystemSleepPrevented = App.Settings.IsSystemSleepPrevented,
         _isDoHEnabled = App.Settings.IsDoHEnabled, _isIPv6DomainFilterEnabled = App.Settings.IsIPv6DomainFilterEnabled,
         _isLocalProxyEnabled= App.Settings.IsLocalProxyEnabled, _isFastestAkamaiIp;
     
@@ -202,6 +203,12 @@ public partial class ServiceViewModel : ObservableObject
     {
         if (!value) return;
         IsDnsServiceEnabled = true;
+    }
+    
+    partial void OnIsLocalProxyEnabledChanged(bool value)
+    {
+        if (!value) return; 
+        IsDnsServiceEnabled = IsHttpServiceEnabled = IsSetLocalDnsEnabled =true;
     }
     
     [RelayCommand]
@@ -399,7 +406,7 @@ public partial class ServiceViewModel : ObservableObject
             {
                 tasks.Add(Task.Run(async () =>
                 {
-                    await _tcpConnectionListener.StartAsync();
+                    await TcpConnectionListener.StartAsync();
                 }, ListeningToken));
             }
             await Task.WhenAll(tasks);
@@ -538,7 +545,7 @@ public partial class ServiceViewModel : ObservableObject
     partial void OnIsLocalUploadEnabledChanged(bool value)
     {
         if (!value) return; 
-        IsXboxGameDownloadLinksShown = true;
+        IsXboxGameDownloadLinksShown = IsHttpServiceEnabled = true;
     }
     
     private Bitmap? _statusImage;

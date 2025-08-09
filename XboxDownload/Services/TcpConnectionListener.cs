@@ -15,6 +15,8 @@ using XboxDownload.ViewModels;
 using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography;
+using System.Text.Json;
+using System.Threading;
 using System.Web;
 using Avalonia.Threading;
 using XboxDownload.Helpers.Network;
@@ -23,17 +25,42 @@ using XboxDownload.Helpers.Utilities;
 
 namespace XboxDownload.Services;
 
-public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
+public partial class TcpConnectionListener
 {
+    private readonly ServiceViewModel _serviceViewModel;
+    
+    public TcpConnectionListener(ServiceViewModel serviceViewModel)
+    {
+        _serviceViewModel = serviceViewModel;
+        CreateCertificate();
+    }
+    
     private static X509Certificate2? _certificate;
     private static Socket? _httpSocket;
     private static Socket? _httpsSocket;
     private const int HttpPort = 80;
     private const int HttpsPort = 443;
     private bool _isSimplifiedChinese;
-
-    private static void CreateCertificate()
+    
+    public static readonly ConcurrentDictionary<string, SniProxy> DicSniProxy = new();
+    public static readonly ConcurrentDictionary<string, SniProxy> DicSniProxy2 = new();
+    
+    public class SniProxy
     {
+        public string? Branch { get; init; }
+        public string? Sni { get; init; }
+        public IPAddress[]? IpAddresses { get; set; }
+        public IPAddress[]? IpAddressesV4 { get; init; }
+        public IPAddress[]? IpAddressesV6 { get; init; }
+        public bool CustomIp { get; init; }
+        public readonly SemaphoreSlim Semaphore = new(1, 1);
+    }
+
+    public void CreateCertificate()
+    {
+        DicSniProxy.Clear();
+        DicSniProxy2.Clear();
+        
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=XboxDownload", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         var sanBuilder = new SubjectAlternativeNameBuilder();
@@ -43,6 +70,87 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
         sanBuilder.AddDnsName("*.akamaized.net");
         sanBuilder.AddDnsName("epicgames-download1-1251447533.file.myqcloud.com");
         sanBuilder.AddDnsName("download.epicgames.com");
+        
+        if (File.Exists(_serviceViewModel.SniProxyFilePath))
+        {
+            List<List<object>>? sniProxy = null;
+            try
+            {
+                sniProxy = JsonSerializer.Deserialize<List<List<object>>>(File.ReadAllText(_serviceViewModel.SniProxyFilePath));
+            }
+            catch
+            {
+                // ignored
+            }
+
+            if (sniProxy != null)
+            {
+                foreach (var item in sniProxy)
+                {
+                    if (item.Count != 3) continue;
+                    
+                    var jeHosts = (JsonElement)item[0];
+                    if (jeHosts.ValueKind != JsonValueKind.Array) continue;
+                    
+                    var sni = item[1].ToString();
+                    var ips = item[2].ToString();
+                    var lsIPv6 = new List<IPAddress>();
+                    var lsIPv4 = new List<IPAddress>();
+                    if (!string.IsNullOrEmpty(ips))
+                    {
+                        foreach (var ip in ips.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            if (IPAddress.TryParse(ip.Trim(), out var ipAddress))
+                            {
+                                switch (ipAddress.AddressFamily)
+                                {
+                                    case AddressFamily.InterNetworkV6 when !lsIPv6.Contains(ipAddress):
+                                        lsIPv6.Add(ipAddress);
+                                        break;
+                                    case AddressFamily.InterNetwork when !lsIPv4.Contains(ipAddress):
+                                        lsIPv4.Add(ipAddress);
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                    var customIp = lsIPv4.Count >= 1 || lsIPv6.Count >= 1;
+                    foreach (var str in jeHosts.EnumerateArray())
+                    {
+                        var splitArray = str.ToString().Trim().Split("->", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                        var host = splitArray[0].Trim();
+                        if (string.IsNullOrEmpty(host) || host.StartsWith('#')) continue;
+                        var branch = splitArray.Length >= 2 ? splitArray[1].Trim() : null;
+                        SniProxy proyx = new()
+                        {
+                            Branch = branch,
+                            Sni = sni,
+                            IpAddressesV4 = lsIPv4.Count >= 1 ? lsIPv4.ToArray() : null,
+                            IpAddressesV6 = lsIPv6.Count >= 1 ? lsIPv6.ToArray() : null,
+                            CustomIp = customIp
+                        };
+                        if (host.StartsWith('*'))
+                        {
+                            host = host[1..];
+                            if (!host.StartsWith('.'))
+                            {
+                                sanBuilder.AddDnsName(host);
+                                DicSniProxy.TryAdd(host, proyx);
+                                host = "." + host;
+                            }
+                            sanBuilder.AddDnsName('*' + host);
+                            DicSniProxy2.TryAdd(host, proyx);
+                        }
+                        else
+                        {
+                            sanBuilder.AddDnsName(host);
+                            DicSniProxy.TryAdd(host, proyx);
+                        }
+                    }
+                }
+            }
+        }
+        
         req.CertificateExtensions.Add(sanBuilder.Build());
         var cert = req.CreateSelfSigned(DateTimeOffset.Now, DateTimeOffset.Now.AddYears(1));
         _certificate =  new X509Certificate2(cert.Export(X509ContentType.Pfx));
@@ -79,7 +187,6 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
             return;
         }
         
-        if (_certificate == null) CreateCertificate();
         if (OperatingSystem.IsWindows())
         {
             X509Store store = new(StoreName.Root, StoreLocation.LocalMachine);
@@ -126,13 +233,13 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
     
     private async Task Listening(Socket? socket, bool isHttps)
     {
-        while (serviceViewModel.IsListening)
+        while (_serviceViewModel.IsListening)
         {
             if (socket == null) break;
 
             try
             {
-                var clientSocket = await socket.AcceptAsync(serviceViewModel.ListeningToken);
+                var clientSocket = await socket.AcceptAsync(_serviceViewModel.ListeningToken);
                 _ = isHttps ? Task.Run(() => HttpsThread(clientSocket)) : Task.Run(() => HttpThread(clientSocket));
             }
             catch
@@ -150,7 +257,7 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
             socket.ReceiveTimeout = 30000;
             try
             {
-                while (serviceViewModel.IsListening && socket.Connected)
+                while (_serviceViewModel.IsListening && socket.Connected)
                 {
                     var receive = new byte[4096];
                     var num = socket.Receive(receive, 0, receive.Length, SocketFlags.None, out _);
@@ -168,10 +275,10 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                     var host = result.Groups[1].Value.Trim().ToLower();
                     
                     string tmpPath = QueryStringRegex().Replace(filePath, ""), localPath = string.Empty;
-                    if (serviceViewModel.IsLocalUploadEnabled)
+                    if (_serviceViewModel.IsLocalUploadEnabled)
                     {
-                        var tmpPath1 = serviceViewModel.LocalUploadPath + tmpPath;
-                        var tmpPath2 = Path.Combine(serviceViewModel.LocalUploadPath, Path.GetFileName(tmpPath));
+                        var tmpPath1 = _serviceViewModel.LocalUploadPath + tmpPath;
+                        var tmpPath2 = Path.Combine(_serviceViewModel.LocalUploadPath, Path.GetFileName(tmpPath));
                         if (File.Exists(tmpPath1))
                         {
                             if (OperatingSystem.IsWindows()) tmpPath1 = tmpPath1.Replace("/", "\\");
@@ -181,7 +288,7 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                             localPath = tmpPath2;
                     }
 
-                    if (serviceViewModel.IsLocalUploadEnabled && !string.IsNullOrEmpty(localPath))
+                    if (_serviceViewModel.IsLocalUploadEnabled && !string.IsNullOrEmpty(localPath))
                     {
                          FileStream? fs = null;
                          try
@@ -190,13 +297,13 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                          }
                          catch (Exception ex)
                          {
-                             if (serviceViewModel.IsLogging)
-                                 serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), ex.Message, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                             if (_serviceViewModel.IsLogging)
+                                 _serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), ex.Message, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                          }
                          if (fs != null)
                          {
-                             if (serviceViewModel.IsLogging)
-                                 serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), localPath, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                             if (_serviceViewModel.IsLogging)
+                                 _serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), localPath, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                              using var br = new BinaryReader(fs);
                              string contentRange = string.Empty, status = "200 OK";
                              long fileLength = br.BaseStream.Length, startPosition = 0;
@@ -224,7 +331,7 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
 
                              br.BaseStream.Position = startPosition;
                              const int size = 4096;
-                             while (serviceViewModel.IsListening && socket.Connected)
+                             while (_serviceViewModel.IsListening && socket.Connected)
                              {
                                  var remaining = endPosition - br.BaseStream.Position;
                                  var response = new byte[remaining <= size ? remaining : size];
@@ -345,8 +452,8 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                             sb.Append("Content-Length: 0\r\n\r\n");
                             var headersBytes = Encoding.ASCII.GetBytes(sb.ToString());
                             socket.Send(headersBytes, 0, headersBytes.Length, SocketFlags.None, out _);
-                            if (serviceViewModel.IsLogging)
-                                serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                            if (_serviceViewModel.IsLogging)
+                                _serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                         }
                         else
                         {
@@ -366,8 +473,8 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                                         var headersBytes = Encoding.ASCII.GetBytes(sb.ToString());
                                         socket.Send(headersBytes, 0, headersBytes.Length, SocketFlags.None, out _);
                                         socket.Send(response, 0, response.Length, SocketFlags.None, out _);
-                                        if (serviceViewModel.IsLogging)
-                                            serviceViewModel.AddLog("HTTP 200", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                        if (_serviceViewModel.IsLogging)
+                                            _serviceViewModel.AddLog("HTTP 200", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                     }
                                     break;
                                 case "epicgames-download1-1251447533.file.myqcloud.com":
@@ -379,7 +486,7 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                                     {
                                         var ipAddresses = App.Settings.IsDoHEnabled
                                             ? await DnsHelper.ResolveDohAsync(host, DnsHelper.CurrentDoH)
-                                            : await DnsHelper.ResolveDnsAsync(host, serviceViewModel.DnsIp);
+                                            : await DnsHelper.ResolveDnsAsync(host, _serviceViewModel.DnsIp);
                                         if (ipAddresses?.Count > 0)
                                         {
                                             var httpHeaders = new Dictionary<string, string>() { { "Host", host } };
@@ -391,8 +498,8 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                                                 var responseData = await response.Content.ReadAsByteArrayAsync();
                                                 socket.Send(headersBytes, 0, headersBytes.Length, SocketFlags.None, out _);
                                                 socket.Send(responseData, 0, responseData.Length, SocketFlags.None, out _);
-                                                if (serviceViewModel.IsLogging)
-                                                    serviceViewModel.AddLog("HTTP 200", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                                if (_serviceViewModel.IsLogging)
+                                                    _serviceViewModel.AddLog("HTTP 200", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                             }
                                         }
                                     }
@@ -407,8 +514,8 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                                         sb.Append("Content-Length: 0\r\n\r\n");
                                         var headersBytes = Encoding.ASCII.GetBytes(sb.ToString());
                                         socket.Send(headersBytes, 0, headersBytes.Length, SocketFlags.None, out _);
-                                        if (serviceViewModel.IsLogging)
-                                            serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                        if (_serviceViewModel.IsLogging)
+                                            _serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                     }
                                     break;
                                 case "blzddist1-a.akamaihd.net":
@@ -461,6 +568,22 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                                     }
                                     break;
                                 }
+                                default:
+                                    if (App.Settings.IsLocalProxyEnabled && (DicSniProxy.ContainsKey(host) || DicSniProxy2.Where(kvp => kvp.Key.EndsWith(host)).Select(x => x.Value).FirstOrDefault() != null))
+                                    {
+                                        fileFound = true;
+                                        url = $"https://{host}{filePath}";
+                                        StringBuilder sb = new();
+                                        sb.Append("HTTP/1.1 302 Moved Temporarily\r\n");
+                                        sb.Append("Content-Type: text/html\r\n");
+                                        sb.Append($"Location: {url}\r\n");
+                                        sb.Append("Content-Length: 0\r\n\r\n");
+                                        var headersBytes = Encoding.ASCII.GetBytes(sb.ToString());
+                                        socket.Send(headersBytes, 0, headersBytes.Length, SocketFlags.None, out _);
+                                        if (_serviceViewModel.IsLogging)
+                                            _serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                    }
+                                    break;
                             }
                             if (!fileFound)
                             {
@@ -472,15 +595,12 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                                 var headersBytes = Encoding.ASCII.GetBytes(sb.ToString());
                                 socket.Send(headersBytes, 0, headersBytes.Length, SocketFlags.None, out _);
                                 socket.Send(response, 0, response.Length, SocketFlags.None, out _);
-                                if (serviceViewModel.IsLogging)
-                                    serviceViewModel.AddLog("HTTP 404", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                if (_serviceViewModel.IsLogging)
+                                    _serviceViewModel.AddLog("HTTP 404", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                             }
                         }
                     }
                 }
-                
-                if (socket.Connected)
-                    socket.Shutdown(SocketShutdown.Both);
             }
             catch
             {
@@ -526,7 +646,7 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
         
         var ipAddresses = App.Settings.IsDoHEnabled
             ? await DnsHelper.ResolveDohAsync("assets2.xboxlive.cn", DnsHelper.CurrentDoH)
-            : await DnsHelper.ResolveDnsAsync("assets2.xboxlive.cn", serviceViewModel.DnsIp);
+            : await DnsHelper.ResolveDnsAsync("assets2.xboxlive.cn", _serviceViewModel.DnsIp);
         
         if (ipAddresses?.Count > 0)
         {
@@ -564,13 +684,13 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                 await ssl.AuthenticateAsServerAsync(_certificate!, false, SslProtocols.Tls13 | SslProtocols.Tls12, false);
                 if (ssl.IsAuthenticated)
                 {
-                    while (serviceViewModel.IsListening && socket.Connected)
+                    while (_serviceViewModel.IsListening && socket.Connected)
                     {
                         var receive = new byte[4096];
                         var num = ssl.Read(receive, 0, receive.Length);
                         var headers = string.Empty;
                         long contentLength = 0, bodyLength = 0;
-                        //var list = new List<byte>();
+                        var list = new List<byte>();
                         for (var i = 1; i <= num - 4; i++)
                         {
                             if (BitConverter.ToString(receive, i, 4) != "0D-0A-0D-0A") continue;
@@ -582,7 +702,7 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                             }
                             var dest = new byte[num - i - 4];
                             Buffer.BlockCopy(receive, i + 4, dest, 0, dest.Length);
-                            //list.AddRange(dest);
+                            list.AddRange(dest);
                             bodyLength = dest.Length;
                             break;
                         }
@@ -591,7 +711,7 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                             num = ssl.Read(receive, 0, receive.Length);
                             var dest = new byte[num];
                             Buffer.BlockCopy(receive, 0, dest, 0, dest.Length);
-                            //list.AddRange(dest);
+                            list.AddRange(dest);
                             bodyLength += num;
                         }
                         var result = HttpRequestMethodAndPathRegex().Match(headers);
@@ -603,10 +723,10 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                         var host = result.Groups[1].Value.Trim().ToLower();
                         
                         string tmpPath = QueryStringRegex().Replace(filePath, ""), localPath = string.Empty;
-                        if (serviceViewModel.IsLocalUploadEnabled)
+                        if (_serviceViewModel.IsLocalUploadEnabled)
                         {
-                            var tmpPath1 = serviceViewModel.LocalUploadPath + tmpPath;
-                            var tmpPath2 = Path.Combine(serviceViewModel.LocalUploadPath, Path.GetFileName(tmpPath));
+                            var tmpPath1 = _serviceViewModel.LocalUploadPath + tmpPath;
+                            var tmpPath2 = Path.Combine(_serviceViewModel.LocalUploadPath, Path.GetFileName(tmpPath));
                             if (File.Exists(tmpPath1))
                             {
                                 if (OperatingSystem.IsWindows()) tmpPath1 = tmpPath1.Replace("/", "\\");
@@ -616,7 +736,7 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                                 localPath = tmpPath2;
                         }
                         
-                        if (serviceViewModel.IsLocalUploadEnabled && !string.IsNullOrEmpty(localPath))
+                        if (_serviceViewModel.IsLocalUploadEnabled && !string.IsNullOrEmpty(localPath))
                         {
                             FileStream? fs = null;
                             try
@@ -625,13 +745,13 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                             }
                             catch (Exception ex)
                             {
-                                if (serviceViewModel.IsLogging)
-                                    serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), ex.Message, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                if (_serviceViewModel.IsLogging)
+                                    _serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), ex.Message, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                             }
                             if (fs != null)
                             {
-                                if (serviceViewModel.IsLogging)
-                                    serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), localPath, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                if (_serviceViewModel.IsLogging)
+                                    _serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), localPath, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                 using var br = new BinaryReader(fs);
                                 string contentRange = string.Empty, status = "200 OK";
                                 long fileLength = br.BaseStream.Length, startPosition = 0;
@@ -659,7 +779,7 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
 
                                 br.BaseStream.Position = startPosition;
                                 const int size = 4096;
-                                while (serviceViewModel.IsListening && socket.Connected)
+                                while (_serviceViewModel.IsListening && socket.Connected)
                                 {
                                     var remaining = endPosition - br.BaseStream.Position;
                                     var response = new byte[remaining <= size ? remaining : size];
@@ -693,7 +813,7 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                                 {
                                     var ipAddresses = App.Settings.IsDoHEnabled
                                         ? await DnsHelper.ResolveDohAsync(host, DnsHelper.CurrentDoH)
-                                        : await DnsHelper.ResolveDnsAsync(host, serviceViewModel.DnsIp);
+                                        : await DnsHelper.ResolveDnsAsync(host, _serviceViewModel.DnsIp);
                                     if (ipAddresses?.Count > 0)
                                     {
                                         fileFound = true;
@@ -721,12 +841,13 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                                             sb.Append("Content-Length: 0\r\n\r\n");
                                             ssl.Write(Encoding.ASCII.GetBytes(sb.ToString()));
                                             ssl.Flush();
-                                            if (serviceViewModel.IsLogging)
-                                                serviceViewModel.AddLog("HTTP 500", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                            if (_serviceViewModel.IsLogging)
+                                                _serviceViewModel.AddLog("HTTP 500", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                         }
                                     }
                                     break;
                                 }
+                                
                                 case "epicgames-download1-1251447533.file.myqcloud.com":
                                 case "epicgames-download1.akamaized.net":
                                 case "download.epicgames.com":
@@ -735,7 +856,7 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                                     {
                                         var ipAddresses = App.Settings.IsDoHEnabled
                                             ? await DnsHelper.ResolveDohAsync(host, DnsHelper.CurrentDoH)
-                                            : await DnsHelper.ResolveDnsAsync(host, serviceViewModel.DnsIp);
+                                            : await DnsHelper.ResolveDnsAsync(host, _serviceViewModel.DnsIp);
                                         if (ipAddresses?.Count > 0)
                                         {
                                             var httpHeaders = new Dictionary<string, string>() { { "Host", host } };
@@ -748,8 +869,8 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                                                 ssl.Write(headersBytes);
                                                 ssl.Write(responseData);
                                                 ssl.Flush();
-                                                if (serviceViewModel.IsLogging)
-                                                    serviceViewModel.AddLog("HTTP 200", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                                if (_serviceViewModel.IsLogging)
+                                                    _serviceViewModel.AddLog("HTTP 200", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                             }
                                         }
                                     }
@@ -764,8 +885,142 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                                         sb.Append("Content-Length: 0\r\n\r\n");
                                         var headersBytes = Encoding.ASCII.GetBytes(sb.ToString());
                                         ssl.Write(headersBytes);
-                                        if (serviceViewModel.IsLogging)
-                                            serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                        if (_serviceViewModel.IsLogging)
+                                            _serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                    }
+                                    break;
+                                
+                                default:
+                                    if (App.Settings.IsLocalProxyEnabled)
+                                    {
+                                        if (host == "github.com" && filePath.Contains("/releases/download/"))
+                                        {
+                                            var fastestUrl = await HttpClientHelper.GetFastestProxy(UpdateService.Proxies1, url, new Dictionary<string, string> { { "Range", "bytes=0-10239" } }, 3000);
+                                            if (fastestUrl != null)
+                                            {
+                                                fileFound = true;
+                                                StringBuilder sb = new();
+                                                sb.Append("HTTP/1.1 302 Moved Temporarily\r\n");
+                                                sb.Append("Content-Type: text/html\r\n");
+                                                sb.Append($"Location: {fastestUrl}\r\n");
+                                                sb.Append("Content-Length: 0\r\n\r\n");
+                                                var headersBytes = Encoding.ASCII.GetBytes(sb.ToString());
+                                                ssl.Write(headersBytes);
+                                                ssl.Flush();
+                                            }
+                                        }
+                                        
+                                        if (!fileFound)
+                                        {
+                                            if (!DicSniProxy.TryGetValue(host, out var proxy))
+                                            {
+                                                var proxy2 = DicSniProxy2.Where(kvp => host.EndsWith(kvp.Key)).Select(x => x.Value).FirstOrDefault();
+                                                if (proxy2 != null)
+                                                {
+                                                    proxy = new SniProxy
+                                                    {
+                                                        Branch = proxy2.Branch,
+                                                        Sni = proxy2.Sni,
+                                                        IpAddressesV4 = proxy2.IpAddressesV4,
+                                                        IpAddressesV6 = proxy2.IpAddressesV6,
+                                                        CustomIp = proxy2.CustomIp
+                                                    };
+                                                    DicSniProxy.TryAdd(host, proxy);
+                                                }
+                                            }
+                                            
+                                            if (proxy != null)
+                                            {
+                                                if (_serviceViewModel.IsLogging) 
+                                                    _serviceViewModel.AddLog("Proxy", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                                
+                                                fileFound = true;
+                                                IPAddress[]? ips = null;
+                                                if (proxy is { CustomIp: true, IpAddresses: null })
+                                                {
+                                                    IPAddress[]? ipV6 = proxy.IpAddressesV6, ipV4 = proxy.IpAddressesV4;
+                                                    proxy.IpAddresses = _serviceViewModel.IsIPv6Support switch
+                                                    {
+                                                        true when ipV6 != null && ipV4 != null => ipV6.Concat(ipV4)
+                                                            .ToArray(),
+                                                        true => ipV6 ?? ipV4,
+                                                        _ => ipV4
+                                                    };
+                                                    if (proxy.IpAddresses?.Length >= 2)
+                                                    {
+                                                        await proxy.Semaphore.WaitAsync();
+                                                        var fastestIp = await HttpClientHelper.GetFastestIp(proxy.IpAddresses, 443, 3000);
+                                                        if (fastestIp != null) ips = proxy.IpAddresses = [fastestIp];
+                                                        proxy.Semaphore.Release();
+                                                    }
+                                                }
+                                                else if (proxy.IpAddresses == null)
+                                                {
+                                                    await proxy.Semaphore.WaitAsync();
+                                                    if (proxy.IpAddresses == null)
+                                                    {
+                                                        var domain = proxy.Branch ?? host;
+                                                        
+                                                        List<IPAddress> ipAddresses = [];
+                                                        var tasks = new List<Task>();
+                                                        foreach (var sniProxyId in App.Settings.SniProxyId)
+                                                        {
+                                                            var selectedDohServer = _serviceViewModel.DohServersMappings.FirstOrDefault(d => d.Id == sniProxyId); 
+                                                            if (selectedDohServer == null) continue;
+                                                            var useProxy = App.Settings.DohServerUseProxyId.Contains(selectedDohServer.Id) && !selectedDohServer.IsProxyDisabled;
+                                                            var doHServer = DnsHelper.GetConfigureDoH(selectedDohServer.Url, selectedDohServer.Ip, useProxy);
+                                                            if (_serviceViewModel.IsIPv6Support)
+                                                            {
+                                                                tasks.Add(Task.Run(async () =>
+                                                                {
+                                                                    var ipV6 = await DnsHelper.ResolveDohAsync(domain, doHServer, true);
+                                                                    if(ipV6 != null)
+                                                                        ipAddresses = ipAddresses.Concat(ipV6).ToList();
+                                                                }));
+                                                            }
+                                                            tasks.Add(Task.Run(async () =>
+                                                            {
+                                                                var ipV4 = await DnsHelper.ResolveDohAsync(domain, doHServer);
+                                                                if(ipV4 != null)
+                                                                    ipAddresses = ipAddresses.Concat(ipV4).ToList();
+                                                            }));
+                                                        }
+                                                        await Task.WhenAll(tasks);
+                                                        if (ipAddresses.Count > 0) 
+                                                            proxy.IpAddresses = ipAddresses.Distinct().ToArray();
+                                                        
+                                                        if (proxy.IpAddresses?.Length >= 2)
+                                                        {
+                                                            var fastestIp = await HttpClientHelper.GetFastestIp(proxy.IpAddresses, 443, 3000);
+                                                            if (fastestIp != null) ips = proxy.IpAddresses = [fastestIp];
+                                                        }
+                                                    }
+                                                    proxy.Semaphore.Release();
+                                                }
+                                                ips ??= proxy.IpAddresses?.Length >= 2 ? proxy.IpAddresses.OrderBy(_ => Random.Shared.Next()).Take(1).ToArray() : proxy.IpAddresses;
+                                                
+                                                string? errMessae;
+                                                if (ips != null)
+                                                {
+                                                    if (!HttpClientHelper.SniProxy(ips, proxy.Sni, Encoding.ASCII.GetBytes(headers), list.ToArray(), ssl, out errMessae))
+                                                    {
+                                                        if (!proxy.CustomIp) proxy.IpAddresses = null;
+                                                    }
+                                                }
+                                                else errMessae = $"Unable to query domain {host}.";
+                                                if (!string.IsNullOrEmpty(errMessae))
+                                                {
+                                                    var response = Encoding.ASCII.GetBytes(errMessae);
+                                                    StringBuilder sb = new();
+                                                    sb.Append("HTTP/1.1 500 Server Error\r\n");
+                                                    sb.Append("Content-Type: text/html\r\n");
+                                                    sb.Append($"Content-Length: {response.Length}\r\n\r\n");
+                                                    ssl.Write(Encoding.ASCII.GetBytes(sb.ToString()));
+                                                    ssl.Write(response);
+                                                    ssl.Flush();
+                                                }
+                                            }
+                                        }
                                     }
                                     break;
                             }
@@ -780,8 +1035,8 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
                                 ssl.Write(headersBytes);
                                 ssl.Write(response);
                                 ssl.Flush();
-                                if (serviceViewModel.IsLogging)
-                                    serviceViewModel.AddLog("HTTP 404", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                if (_serviceViewModel.IsLogging)
+                                    _serviceViewModel.AddLog("HTTP 404", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                             }
                         }
                     }
@@ -814,16 +1069,16 @@ public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
     [GeneratedRegex(@"Range: bytes=(?<StartPosition>\d+)(-(?<EndPosition>\d+))?")]
     private static partial Regex RangeHeaderRegex();
     
-    [GeneratedRegex(@"Content-Length:\s*(?<ContentLength>\d+)", RegexOptions.IgnoreCase, "zh-CN")]
+    [GeneratedRegex(@"Content-Length:\s*(?<ContentLength>\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex ContentLengthHeaderRegex();
     
     [GeneratedRegex(@"/(?<ContentId>\w{8}-\w{4}-\w{4}-\w{4}-\w{12})/(?<Version>\d+\.\d+\.\d+\.\d+)\.\w{8}-\w{4}-\w{4}-\w{4}-\w{12}")]
     private static partial Regex ContentIdVersionRegex();
     
-    [GeneratedRegex(@"_xs(-\d+)?\.xvc$", RegexOptions.IgnoreCase, "zh-CN")]
+    [GeneratedRegex(@"_xs(-\d+)?\.xvc$", RegexOptions.IgnoreCase)]
     private static partial Regex XvcRegex();
     
-    [GeneratedRegex(@"\.msixvc$", RegexOptions.IgnoreCase, "zh-CN")]
+    [GeneratedRegex(@"\.msixvc$", RegexOptions.IgnoreCase)]
     private static partial Regex MsiXvcRegex();
     
     [GeneratedRegex(@"Authorization:(.+)")]
