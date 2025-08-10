@@ -14,6 +14,7 @@ using MsBox.Avalonia.Enums;
 using XboxDownload.Helpers.Network;
 using XboxDownload.Helpers.Resources;
 using XboxDownload.Helpers.UI;
+using XboxDownload.Helpers.Utilities;
 using XboxDownload.Models.Host;
 using XboxDownload.Models.Services;
 using XboxDownload.Services;
@@ -141,7 +142,7 @@ public partial class ResolveDomainDialogViewModel : ObservableObject
     [RelayCommand]
     public async Task QueryAsync()
     {
-        HostnameToResolve = HostnameToResolve.Trim().ToLowerInvariant();
+        HostnameToResolve = RegexHelper.ExtractDomainFromUrlRegex().Replace(HostnameToResolve, "$2").Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(HostnameToResolve))
         {
             await DialogHelper.ShowInfoDialogAsync(

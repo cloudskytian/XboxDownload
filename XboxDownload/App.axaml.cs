@@ -53,11 +53,12 @@ public partial class App : Application
     private void LoadLanguage()
     {
         var culture = Settings.Culture;
-        if (culture is not ("en-US" or "zh-Hans"))
+        if (culture is not ("en-US" or "zh-Hans" or "zh-Hant"))
         {
             culture = CultureInfo.CurrentUICulture.Name switch
             {
-                "zh" or "zh-CN" or "zh-Hans" or "zh-Hans-CN" or "zh-SG" or "zh-Hans-SG" => "zh-Hans",
+                "zh" or "zh-CN" or "zh-SG" or "zh-Hans" => "zh-Hans",
+                "zh-TW" or "zh-HK" or "zh-MO" or "zh-Hant" => "zh-Hant",
                 _ => "en-US"
             };
             Settings.Culture = culture;

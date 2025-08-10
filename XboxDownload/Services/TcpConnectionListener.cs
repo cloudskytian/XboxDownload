@@ -52,7 +52,7 @@ public partial class TcpConnectionListener
         public IPAddress[]? IpAddresses { get; set; }
         public IPAddress[]? IpAddressesV4 { get; init; }
         public IPAddress[]? IpAddressesV6 { get; init; }
-        public bool CustomIp { get; init; }
+        public bool UseCustomIpAddress { get; init; }
         public readonly SemaphoreSlim Semaphore = new(1, 1);
     }
 
@@ -62,7 +62,7 @@ public partial class TcpConnectionListener
         DicSniProxy2.Clear();
         
         using var rsa = RSA.Create(2048);
-        var req = new CertificateRequest("CN=XboxDownload", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        var req = new CertificateRequest($"CN={nameof(XboxDownload)}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         var sanBuilder = new SubjectAlternativeNameBuilder();
         sanBuilder.AddDnsName("packagespc.xboxlive.com");
         sanBuilder.AddDnsName("*.akamai.net");
@@ -127,7 +127,7 @@ public partial class TcpConnectionListener
                             Sni = sni,
                             IpAddressesV4 = lsIPv4.Count >= 1 ? lsIPv4.ToArray() : null,
                             IpAddressesV6 = lsIPv6.Count >= 1 ? lsIPv6.ToArray() : null,
-                            CustomIp = customIp
+                            UseCustomIpAddress = customIp
                         };
                         if (host.StartsWith('*'))
                         {
@@ -225,7 +225,7 @@ public partial class TcpConnectionListener
             using X509Store store = new(StoreName.Root, StoreLocation.LocalMachine);
             store.Open(OpenFlags.ReadWrite);
             var certificates =
-                store.Certificates.Find(X509FindType.FindBySubjectDistinguishedName, "CN=XboxDownload", false);
+                store.Certificates.Find(X509FindType.FindBySubjectDistinguishedName, $"CN={nameof(XboxDownload)}", false);
             if (certificates.Count > 0) store.RemoveRange(certificates);
             store.Close();
         }
@@ -637,20 +637,21 @@ public partial class TcpConnectionListener
 
         host = host switch
         {
-            "xvcf1.xboxlive.com" or "xvcf2.xboxlive.com" or "assets2.xboxlive.com" or "d1.xboxlive.com"
-                or "d2.xboxlive.com" or "assets1.xboxlive.cn" or "assets2.xboxlive.cn" or "d1.xboxlive.cn"
-                or "d2.xboxlive.cn" => "assets1.xboxlive.com", 
+            "xvcf1.xboxlive.com" or "xvcf2.xboxlive.com" or "assets2.xboxlive.com"
+                or "d1.xboxlive.com" or "d2.xboxlive.com" or "assets1.xboxlive.cn" or "assets2.xboxlive.cn" 
+                or "d1.xboxlive.cn" or "d2.xboxlive.cn" => "assets1.xboxlive.com", 
             "dlassets2.xboxlive.com" or "dlassets.xboxlive.cn" or "dlassets2.xboxlive.cn" => "dlassets.xboxlive.com",
             _ => host
         };
-        
+
+        const string tagHost = "assets2.xboxlive.cn";
         var ipAddresses = App.Settings.IsDoHEnabled
-            ? await DnsHelper.ResolveDohAsync("assets2.xboxlive.cn", DnsHelper.CurrentDoH)
-            : await DnsHelper.ResolveDnsAsync("assets2.xboxlive.cn", _serviceViewModel.DnsIp);
+            ? await DnsHelper.ResolveDohAsync(tagHost, DnsHelper.CurrentDoH)
+            : await DnsHelper.ResolveDnsAsync(tagHost, _serviceViewModel.DnsIp);
         
         if (ipAddresses?.Count > 0)
         {
-            var headers = new Dictionary<string, string>() { { "Host", "assets2.xboxlive.cn" } };
+            var headers = new Dictionary<string, string>() { { "Host", tagHost } };
             using var response = await HttpClientHelper.SendRequestAsync($"http://{ipAddresses[0].ToString()}{tmpPath}", method: "HEAD", headers: headers);
             if (response is { IsSuccessStatusCode: true })
             {
@@ -923,7 +924,7 @@ public partial class TcpConnectionListener
                                                         Sni = proxy2.Sni,
                                                         IpAddressesV4 = proxy2.IpAddressesV4,
                                                         IpAddressesV6 = proxy2.IpAddressesV6,
-                                                        CustomIp = proxy2.CustomIp
+                                                        UseCustomIpAddress = proxy2.UseCustomIpAddress
                                                     };
                                                     DicSniProxy.TryAdd(host, proxy);
                                                 }
@@ -936,7 +937,7 @@ public partial class TcpConnectionListener
                                                 
                                                 fileFound = true;
                                                 IPAddress[]? ips = null;
-                                                if (proxy is { CustomIp: true, IpAddresses: null })
+                                                if (proxy is { UseCustomIpAddress: true, IpAddresses: null })
                                                 {
                                                     IPAddress[]? ipV6 = proxy.IpAddressesV6, ipV4 = proxy.IpAddressesV4;
                                                     proxy.IpAddresses = _serviceViewModel.IsIPv6Support switch
@@ -949,8 +950,13 @@ public partial class TcpConnectionListener
                                                     if (proxy.IpAddresses?.Length >= 2)
                                                     {
                                                         await proxy.Semaphore.WaitAsync();
-                                                        var fastestIp = await HttpClientHelper.GetFastestIp(proxy.IpAddresses, 443, 3000);
-                                                        if (fastestIp != null) ips = proxy.IpAddresses = [fastestIp];
+                                                        if (proxy.IpAddresses?.Length >= 2)
+                                                        {
+                                                            var fastestIp =
+                                                                await HttpClientHelper.GetFastestIp(proxy.IpAddresses, 443, 3000);
+                                                            if (fastestIp != null)
+                                                                ips = proxy.IpAddresses = [fastestIp];
+                                                        }
                                                         proxy.Semaphore.Release();
                                                     }
                                                 }
@@ -974,14 +980,14 @@ public partial class TcpConnectionListener
                                                                 tasks.Add(Task.Run(async () =>
                                                                 {
                                                                     var ipV6 = await DnsHelper.ResolveDohAsync(domain, doHServer, true);
-                                                                    if(ipV6 != null)
+                                                                    if (ipV6 != null)
                                                                         ipAddresses = ipAddresses.Concat(ipV6).ToList();
                                                                 }));
                                                             }
                                                             tasks.Add(Task.Run(async () =>
                                                             {
                                                                 var ipV4 = await DnsHelper.ResolveDohAsync(domain, doHServer);
-                                                                if(ipV4 != null)
+                                                                if (ipV4 != null)
                                                                     ipAddresses = ipAddresses.Concat(ipV4).ToList();
                                                             }));
                                                         }
@@ -997,14 +1003,14 @@ public partial class TcpConnectionListener
                                                     }
                                                     proxy.Semaphore.Release();
                                                 }
-                                                ips ??= proxy.IpAddresses?.Length >= 2 ? proxy.IpAddresses.OrderBy(_ => Random.Shared.Next()).Take(1).ToArray() : proxy.IpAddresses;
+                                                ips ??= proxy.IpAddresses?.Length >= 2 ? proxy.IpAddresses.OrderBy(_ => Random.Shared.Next()).Take(16).ToArray() : proxy.IpAddresses;
                                                 
                                                 string? errMessae;
                                                 if (ips != null)
                                                 {
-                                                    if (!HttpClientHelper.SniProxy(ips, proxy.Sni, Encoding.ASCII.GetBytes(headers), list.ToArray(), ssl, out errMessae))
+                                                    if (!ExecuteSniProxy(ips, proxy.Sni, Encoding.ASCII.GetBytes(headers), list.ToArray(), ssl, out errMessae))
                                                     {
-                                                        if (!proxy.CustomIp) proxy.IpAddresses = null;
+                                                        proxy.IpAddresses = null;
                                                     }
                                                 }
                                                 else errMessae = $"Unable to query domain {host}.";
@@ -1054,34 +1060,164 @@ public partial class TcpConnectionListener
         }
     }
 
-    [GeneratedRegex(@"(?<method>GET|POST|PUP|DELETE|OPTIONS|HEAD) (?<path>[^\s]+)")]
+    private static bool ExecuteSniProxy(IPAddress[] ips, string? sni, byte[] send1, byte[] send2, SslStream client, out string? errMessage)
+    {
+        var isOk = true;
+        errMessage = null;
+        using Socket socket = new(ips[0].AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+        socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendTimeout, true);
+        socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveTimeout, true);
+        socket.SendTimeout = 6000;
+        socket.ReceiveTimeout = 6000;
+        try
+        {
+            socket.Connect(ips[0], 443);
+        }
+        catch (Exception ex)
+        {
+            isOk = false;
+            errMessage = ex.Message;
+        }
+        if (socket.Connected)
+        {
+            using SslStream ssl = new(new NetworkStream(socket), false, delegate { return true; }, null);
+            ssl.WriteTimeout = 30000;
+            ssl.ReadTimeout = 30000;
+            try
+            {
+                ssl.AuthenticateAsClient(string.IsNullOrEmpty(sni) ? ips[0].ToString() : sni);
+                if (ssl.IsAuthenticated)
+                {
+                    ssl.Write(send1);
+                    ssl.Write(send2);
+                    ssl.Flush();
+                    long count = 0, contentLength = -1;
+                    int len;
+                    string headers = string.Empty, transferEncoding = string.Empty;
+                    var list = new List<byte>();
+                    var bReceive = new byte[4096];
+                    while ((len = ssl.Read(bReceive, 0, bReceive.Length)) > 0)
+                    {
+                        count += len;
+                        var dest = new byte[len];
+                        if (len == bReceive.Length)
+                        {
+                            dest = bReceive;
+                            if (string.IsNullOrEmpty(headers)) list.AddRange(bReceive);
+                        }
+                        else
+                        {
+                            Buffer.BlockCopy(bReceive, 0, dest, 0, len);
+                            if (string.IsNullOrEmpty(headers)) list.AddRange(dest);
+                        }
+                        client.Write(dest);
+                        if (string.IsNullOrEmpty(headers))
+                        {
+                            var bytes = list.ToArray();
+                            for (var i = 1; i <= bytes.Length - 4; i++)
+                            {
+                                if (BitConverter.ToString(bytes, i, 4) != "0D-0A-0D-0A") continue;
+                                
+                                headers = Encoding.ASCII.GetString(bytes, 0, i + 4);
+                                count = bytes.Length - i - 4;
+                                list.Clear();
+                                var result = StatusCodeHeaderRegex().Match(headers);
+                                if (result.Success && int.TryParse(result.Groups["StatusCode"].Value, out var statusCode) && statusCode >= 400)
+                                {
+                                    isOk = false;
+                                }
+                                result = ContentLengthHeaderRegex().Match(headers);
+                                if (result.Success)
+                                {
+                                    contentLength = Convert.ToInt32(result.Groups["ContentLength"].Value);
+                                }
+                                result = TransferEncodingHeaderRegex().Match(headers);
+                                if (result.Success)
+                                {
+                                    transferEncoding = result.Groups["TransferEncoding"].Value.Trim();
+                                }
+                                break;
+                            }
+                        }
+                        if (!string.IsNullOrEmpty(headers))
+                        {
+                            if (transferEncoding == "chunked")
+                            {
+                                if (dest.Length >= 5 && BitConverter.ToString(dest, dest.Length - 5) == "30-0D-0A-0D-0A")
+                                {
+                                    break;
+                                }
+                            }
+                            else if (contentLength >= 0)
+                            {
+                                if (count == contentLength) break;
+                            }
+                            else break;
+                        }
+                    }
+                    client.Flush();
+                }
+            }
+            catch (Exception ex)
+            {
+                isOk = false;
+                errMessage = ex.Message;
+            }
+            finally
+            {
+                ssl.Close();
+            }
+        }
+
+        if (socket.Connected)
+        {
+            try
+            {
+                socket.Shutdown(SocketShutdown.Both);
+            }
+            finally
+            {
+                socket.Close();
+            }
+        }
+        
+        return isOk;
+    }
+
+    [GeneratedRegex(@"(?<method>GET|POST|PUP|DELETE|OPTIONS|HEAD) (?<path>[^\s]+)" , RegexOptions.Compiled)]
     private static partial Regex HttpRequestMethodAndPathRegex();
     
-    [GeneratedRegex(@"^https?://[^/]+")]
+    [GeneratedRegex(@"^https?://[^/]+", RegexOptions.Compiled)]
     private static partial Regex BaseUrlRegex();
     
-    [GeneratedRegex(@"Host:(.+)")]
+    [GeneratedRegex(@"Host:(.+)", RegexOptions.Compiled)]
     private static partial Regex HostHeaderRegex();
     
-    [GeneratedRegex(@"\?.*$")]
+    [GeneratedRegex(@"\?.*$", RegexOptions.Compiled)]
     private static partial Regex QueryStringRegex();
     
-    [GeneratedRegex(@"Range: bytes=(?<StartPosition>\d+)(-(?<EndPosition>\d+))?")]
+    [GeneratedRegex(@"Range: bytes=(?<StartPosition>\d+)(-(?<EndPosition>\d+))?", RegexOptions.Compiled)]
     private static partial Regex RangeHeaderRegex();
     
-    [GeneratedRegex(@"Content-Length:\s*(?<ContentLength>\d+)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"Content-Length:\s*(?<ContentLength>\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
     private static partial Regex ContentLengthHeaderRegex();
     
-    [GeneratedRegex(@"/(?<ContentId>\w{8}-\w{4}-\w{4}-\w{4}-\w{12})/(?<Version>\d+\.\d+\.\d+\.\d+)\.\w{8}-\w{4}-\w{4}-\w{4}-\w{12}")]
+    [GeneratedRegex(@"/(?<ContentId>\w{8}-\w{4}-\w{4}-\w{4}-\w{12})/(?<Version>\d+\.\d+\.\d+\.\d+)\.\w{8}-\w{4}-\w{4}-\w{4}-\w{12}", RegexOptions.Compiled)]
     private static partial Regex ContentIdVersionRegex();
     
-    [GeneratedRegex(@"_xs(-\d+)?\.xvc$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"_xs(-\d+)?\.xvc$", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
     private static partial Regex XvcRegex();
     
-    [GeneratedRegex(@"\.msixvc$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\.msixvc$", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
     private static partial Regex MsiXvcRegex();
     
-    [GeneratedRegex(@"Authorization:(.+)")]
+    [GeneratedRegex(@"Authorization:(.+)", RegexOptions.Compiled)]
     private static partial Regex AuthorizationRegex();
+    
+    [GeneratedRegex(@"^HTTP/\d+(\.\d*)? (?<StatusCode>\d+)", RegexOptions.Compiled)]
+    private static partial Regex StatusCodeHeaderRegex();
+    
+    [GeneratedRegex(@"Transfer-Encoding:\s*(?<TransferEncoding>.+)", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
+    private static partial Regex TransferEncodingHeaderRegex();
 }
 

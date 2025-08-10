@@ -13,6 +13,7 @@ using MsBox.Avalonia.Enums;
 using XboxDownload.Helpers.Network;
 using XboxDownload.Helpers.Resources;
 using XboxDownload.Helpers.UI;
+using XboxDownload.Helpers.Utilities;
 using XboxDownload.Models.Services;
 using XboxDownload.Services;
 
@@ -217,13 +218,6 @@ public partial class DohServerDialogViewModel : ObservableObject
         CloseDialog?.Invoke();
     }
     
-    
-    
-    
-    
-    
-    
-    
     [ObservableProperty]
     private DohHostMappingEntry? _selectedEntry;
     
@@ -336,7 +330,7 @@ public partial class DohServerDialogViewModel : ObservableObject
         public DohHostEntryJson ToJson() => new()
         {
             IsEnabled = IsEnabled,
-            Domain = Truncate(Domain.Trim().ToLowerInvariant(), 253),
+            Domain = RegexHelper.ExtractDomainFromUrlRegex().Replace(Domain, "$2").Trim().ToLowerInvariant(),
             DohServerId = DohServerId,
             Remark = Truncate(Note.Trim(), 50)
         };

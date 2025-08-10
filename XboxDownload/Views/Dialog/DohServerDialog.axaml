@@ -42,7 +42,7 @@
                 
                 <Border Grid.Row="1">
                     <HeaderedContentControl Header="{DynamicResource Service.SecureDns.SpeedTest}">
-                        <Grid ColumnDefinitions="*,200,*" RowDefinitions="*,Auto" RowSpacing="6">
+                        <Grid ColumnDefinitions="*,120,*" RowDefinitions="*,Auto" RowSpacing="6">
                             
                             <DataGrid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" CanUserSortColumns="False"
                                       CanUserResizeColumns="False" GridLinesVisibility="All"
@@ -127,7 +127,7 @@
                                     Content="{DynamicResource Service.SecureDns.Test}"
                                     Command="{Binding SpeedTestCommand}"/>
                             <StackPanel Grid.Row="1" Grid.Column="2" Spacing="10" Orientation="Horizontal" HorizontalAlignment="Right">
-                                <TextBlock TextWrapping="Wrap"  HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                                <TextBlock TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
                                             Text="{DynamicResource Service.SecureDns.DohProxyNote}"/>
                                 <Button Classes="LinkLabel" Command="{Binding UpdateSelectionCommand}" CommandParameter="ToggleProxy">
                                     <TextBlock Text="{DynamicResource Service.SecureDns.InvertSelection}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>

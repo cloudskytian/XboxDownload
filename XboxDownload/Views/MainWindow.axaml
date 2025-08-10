@@ -20,6 +20,7 @@
                     <MenuItem Header="{DynamicResource Menu.Language}">
                         <MenuItem Header="English" Command="{Binding SwitchLanguageCommand}" CommandParameter="en-US"/>
                         <MenuItem Header="简体中文" Command="{Binding SwitchLanguageCommand}" CommandParameter="zh-Hans"/>
+                        <MenuItem Header="繁體中文" Command="{Binding SwitchLanguageCommand}" CommandParameter="zh-Hant"/>
                     </MenuItem>
                     <MenuItem Header="{DynamicResource Menu.Theme}">
                         <MenuItem Header="{DynamicResource Menu.Theme.Default}" Command="{Binding SwitchThemeCommand}" CommandParameter="Default"/>

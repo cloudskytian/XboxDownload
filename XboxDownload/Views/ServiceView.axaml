@@ -8,12 +8,10 @@
              x:DataType="vm:ServiceViewModel">
     
     <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="*,200">
-        
         <!-- Settings Group -->
         <Border Grid.Row="0" Grid.Column="0">
             <HeaderedContentControl Header="{DynamicResource Service.Settings}">
                 <StackPanel Spacing="2">
-                    
                     <StackPanel.Styles>
                         <Style Selector="StackPanel.hosts-row">
                             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -42,7 +40,7 @@
                     </StackPanel.Styles>
                     
                     <Grid RowDefinitions="*,*" ColumnDefinitions="60,Auto,Auto">
-                        <Image Grid.Column="0" Height="58" Width="58" Source="{Binding StatusImage}"/>
+                        <Image Grid.Row="0" Grid.Column="0" Height="58" Width="58" Source="{Binding StatusImage}"/>
 
                         <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4" Margin="5,0">
                             <StackPanel Orientation="Horizontal" Classes="hosts-row">

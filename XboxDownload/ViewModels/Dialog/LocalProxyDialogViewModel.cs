@@ -126,10 +126,10 @@ public partial class LocalProxyDialogViewModel : ObservableObject
             {
                 foreach (var hostRaw in proxy[0].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
                 {
-                    var host = Regex.Replace(hostRaw.ToLower().Trim(), @"^(https?://)?([^/|:]+).*$", "$2").Trim();
+                    var host = RegexHelper.ExtractDomainFromUrlRegex().Replace(hostRaw, "$2").Trim().ToLowerInvariant();
                     if (!string.IsNullOrEmpty(host))
                     {
-                        arrHost.Add(Regex.Replace(host, @"\s*->\s*", " -> "));
+                        arrHost.Add(ArrowSymbolRegex().Replace(host, " -> "));
                     }
                 }
             }
@@ -151,7 +151,7 @@ public partial class LocalProxyDialogViewModel : ObservableObject
                                 break;
                         }
                     }
-                    else sni = Regex.Replace(proxy[1].ToLower(), @"^(https?://)?([^/|:|\s]+).*$", "$2").Trim();
+                    else sni = RegexHelper.ExtractDomainFromUrlRegex().Replace(proxy[1], "$2").Trim().ToLowerInvariant();
                 }
                 else
                 {
@@ -174,7 +174,7 @@ public partial class LocalProxyDialogViewModel : ObservableObject
             }
             else if (proxy.Length >= 3)
             {
-                sni = Regex.Replace(proxy[1].ToLower().Trim(), @"^(https?://)?([^/|:|\s]+).*$", "$2").Trim();
+                sni = RegexHelper.ExtractDomainFromUrlRegex().Replace(proxy[1], "$2").Trim().ToLowerInvariant();
                 var ips = proxy[2].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
                 foreach (var ip in ips)
                 {
@@ -217,5 +217,8 @@ public partial class LocalProxyDialogViewModel : ObservableObject
 
         CloseDialog?.Invoke();
     }
+    
+    [GeneratedRegex(@"\s*->\s*")]
+    private static partial Regex ArrowSymbolRegex();
 }
 

@@ -181,7 +181,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Width="265" Header="{DynamicResource SpeedTest.DataGrid.Ip}" SortMemberPath="Ip" Binding="{Binding Path=Ip}" IsReadOnly="True"/>
+                        <DataGridTextColumn Width="260" Header="{DynamicResource SpeedTest.DataGrid.Ip}" SortMemberPath="Ip" Binding="{Binding Path=Ip}" IsReadOnly="True"/>
                         <DataGridTextColumn Width="*" Header="{DynamicResource SpeedTest.DataGrid.Location}" SortMemberPath="Location" Binding="{Binding Path=Location}" IsReadOnly="True"/>
                         <DataGridCheckBoxColumn Width="70" Header="{DynamicResource SpeedTest.DataGrid.IsRedirect}" Binding="{Binding Path=IsRedirect}" IsReadOnly="True"/>
                         <!--

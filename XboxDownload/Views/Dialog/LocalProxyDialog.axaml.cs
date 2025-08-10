@@ -9,7 +9,7 @@ namespace XboxDownload.Views.Dialog;
 
 public partial class LocalProxyDialog : Window
 {
-    private LocalProxyDialog()
+    public LocalProxyDialog()
     {
         InitializeComponent();
     }

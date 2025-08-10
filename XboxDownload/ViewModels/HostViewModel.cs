@@ -12,6 +12,7 @@ using MsBox.Avalonia.Enums;
 using XboxDownload.Helpers.Resources;
 using XboxDownload.Helpers.System;
 using XboxDownload.Helpers.UI;
+using XboxDownload.Helpers.Utilities;
 using XboxDownload.Models.Host;
 
 namespace XboxDownload.ViewModels;
@@ -92,6 +93,7 @@ public partial class HostViewModel : ObservableObject
 
         foreach (var entry in HostMappings)
         {
+            entry.HostName = RegexHelper.ExtractDomainFromUrlRegex().Replace(entry.HostName, "$2").Trim().ToLowerInvariant();
             if (string.IsNullOrWhiteSpace(entry.HostName) && string.IsNullOrWhiteSpace(entry.Ip))
             {
                 toRemove.Add(entry);

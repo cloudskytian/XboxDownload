@@ -55,7 +55,7 @@ public static partial class RegexHelper
         @"^https?://www\.microsoft\.com/store/productId/(?<productId>[a-zA-Z0-9]{12})|" +
         @"^https?://apps\.microsoft\.com(/store)?/detail(/[^/]+)?/(?<productId>[a-zA-Z0-9]{12})|" +
         @"productid=(?<productId>[a-zA-Z0-9]{12})|" +
-        @"^(?<productId>[a-zA-Z0-9]{12})$", RegexOptions.IgnoreCase)]
+        @"^(?<productId>[a-zA-Z0-9]{12})$", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
     public static partial Regex ExtractProductIdRegex();
     
     [GeneratedRegex(@"(\d+\.\d+\.\d+\.\d+)")]
@@ -63,4 +63,7 @@ public static partial class RegexHelper
     
     [GeneratedRegex(@"[^\x00-\xFF]")]
     public static partial Regex NonAsciiRegex();
+    
+    [GeneratedRegex(@"^(https?://)?([^/|:]+).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
+    public static partial Regex ExtractDomainFromUrlRegex();
 }

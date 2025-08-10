@@ -9,7 +9,7 @@ namespace XboxDownload.Views.Dialog;
 
 public partial class DohServerDialog : Window
 {
-    private DohServerDialog()
+    public DohServerDialog()
     {
         InitializeComponent();
     }

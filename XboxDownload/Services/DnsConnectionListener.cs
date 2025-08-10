@@ -7,7 +7,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Versioning;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.DependencyInjection;
@@ -15,10 +14,10 @@ using MsBox.Avalonia.Enums;
 using XboxDownload.Helpers.Network;
 using XboxDownload.Helpers.Resources;
 using XboxDownload.Helpers.UI;
+using XboxDownload.Helpers.Utilities;
 using XboxDownload.Models.Dns;
 using XboxDownload.Models.Host;
 using XboxDownload.ViewModels;
-using RegexHelper = XboxDownload.Helpers.Utilities.RegexHelper;
 
 namespace XboxDownload.Services;
 
