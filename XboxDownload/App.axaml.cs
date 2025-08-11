@@ -61,6 +61,10 @@ public partial class App : Application
                 "zh-TW" or "zh-HK" or "zh-MO" or "zh-Hant" => "zh-Hant",
                 _ => "en-US"
             };
+            if (string.IsNullOrEmpty(Settings.DohServerId))
+            {
+                Settings.DohServerId = culture == "zh-Hans" ? "AlibabaCloud" : "Google";
+            }
             Settings.Culture = culture;
             SettingsManager.Save(Settings);
         }

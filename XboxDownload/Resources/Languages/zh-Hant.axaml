@@ -85,7 +85,7 @@
     <x:String x:Key="Service.Service.RepairLocalDnsFailedMessage">修復 DNS 失敗，錯誤資訊：</x:String>
     <x:String x:Key="Service.Service.SystemSleepPrevented">防止系統進入睡眠</x:String>
     <x:String x:Key="Service.Service.SecureDns">加密 DNS</x:String>
-    <x:String x:Key="Service.Service.SecureDnsTip">默認使用 阿裡雲DoH（DNS over HTTPS）加密解析，避免傳統DNS被劫持或污染。&#x0a;PC用戶請勾選 “設置本機DNS” 以生效。</x:String>
+    <x:String x:Key="Service.Service.SecureDnsTip">默認使用 Google DoH（DNS over HTTPS）加密解析，避免傳統DNS被劫持或污染。&#x0a;PC用戶請勾選 “設置本機DNS” 以生效。</x:String>
     <x:String x:Key="Service.Service.SecureDns.AlibabaCloud">阿裡雲</x:String>
     <x:String x:Key="Service.Service.SecureDns.TencentCloud">騰訊雲</x:String>
     <x:String x:Key="Service.Service.SecureDns.Qihoo360">奇虎360</x:String>
@@ -318,7 +318,7 @@
     <x:String x:Key="Service.ResolveDomain.DohServer">DoH 伺服器</x:String>
     <x:String x:Key="Service.ResolveDomain.SelectAll">全選</x:String>
     <x:String x:Key="Service.ResolveDomain.InvertSelection">反選</x:String>
-    <x:String x:Key="Service.ResolveDomain.IpAddress2">IP 位址 (按兩下選擇)</x:String>
+    <x:String x:Key="Service.ResolveDomain.IpAddress2">IP 位址 (雙擊選擇)</x:String>
     <x:String x:Key="Service.ResolveDomain.Delay">延時</x:String>
     <x:String x:Key="Service.ResolveDomain.Location">位置</x:String>
     <x:String x:Key="Service.ResolveDomain.Proxy">代理</x:String>

@@ -85,7 +85,7 @@
     <x:String x:Key="Service.Service.RepairLocalDnsFailedMessage">DNS repair failed. Error details:</x:String>
     <x:String x:Key="Service.Service.SystemSleepPrevented">Prevent system sleep</x:String>
     <x:String x:Key="Service.Service.SecureDns">Secure DNS</x:String>
-    <x:String x:Key="Service.Service.SecureDnsTip">Default to Alibaba Cloud DoH (DNS over HTTPS) for encrypted resolution, preventing traditional DNS hijacking or pollution.&#x0a;PC users, check "Set Local DNS" to apply.</x:String>
+    <x:String x:Key="Service.Service.SecureDnsTip">Default to Google DoH (DNS over HTTPS) for encrypted resolution, preventing traditional DNS hijacking or pollution.&#x0a;PC users, check "Set Local DNS" to apply.</x:String>
     <x:String x:Key="Service.Service.SecureDns.AlibabaCloud">Alibaba Cloud (China)</x:String>
     <x:String x:Key="Service.Service.SecureDns.TencentCloud">Tencent Cloud (China)</x:String>
     <x:String x:Key="Service.Service.SecureDns.Qihoo360">Qihoo 360 (China)</x:String>
