@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.DependencyInjection;
 using CommunityToolkit.Mvvm.Input;
 using DynamicData;
 using DynamicData.Binding;
+using Microsoft.VisualBasic;
 using MsBox.Avalonia.Enums;
 using System;
 using System.Collections.Concurrent;
@@ -24,6 +25,7 @@ using XboxDownload.Helpers.IO;
 using XboxDownload.Helpers.Network;
 using XboxDownload.Helpers.Resources;
 using XboxDownload.Helpers.UI;
+using XboxDownload.Helpers.Utilities;
 using XboxDownload.Models.SpeedTest;
 using XboxDownload.Services;
 
@@ -133,7 +135,7 @@ public partial class SpeedTestViewModel : ViewModelBase
         
         var isAkamai = SelectedImportOption.Key.StartsWith("Akamai");
         
-        if (isAkamai && App.Settings.Culture != "zh-Hans")
+        if (isAkamai && App.Settings.Culture != "zh-Hans" || App.Settings.Culture == "zh-Hant")
         {
             await TranslationLocation(items);
         }
@@ -180,30 +182,42 @@ public partial class SpeedTestViewModel : ViewModelBase
 
     public async Task TranslationLocation(List<IpItem> items)
     {
-        var translationFile = new FileInfo(_translationPath);
-        if (!translationFile.Exists || translationFile.LastAccessTimeUtc < DateTime.UtcNow.AddDays(-7))
+        if (App.Settings.Culture == "zh-Hant")
         {
-            await UpdateService.DownloadIpAsync(translationFile, "{");
-        }
-        if (translationFile.Exists)
-        {
-            try
+            foreach (var ip in items)
             {
-                var json = await File.ReadAllTextAsync(_translationPath);
-                var translation = JsonSerializer.Deserialize<ConcurrentDictionary<string, string>>(json);
-                if (translation is { Count: > 0 })
+                var location = ChineseConverter.SimplifiedToTraditional(ip.Location);
+                if (!string.IsNullOrEmpty(location))
+                    ip.Location = location;
+            }
+        }
+        else
+        {
+            var translationFile = new FileInfo(_translationPath);
+            if (!translationFile.Exists || translationFile.LastAccessTimeUtc < DateTime.UtcNow.AddDays(-7))
+            {
+                await UpdateService.DownloadIpAsync(translationFile, "{");
+            }
+            if (translationFile.Exists)
+            {
+                try
                 {
-                    foreach (var ip in items)
+                    var json = await File.ReadAllTextAsync(_translationPath);
+                    var translation = JsonSerializer.Deserialize<ConcurrentDictionary<string, string>>(json);
+                    if (translation is { Count: > 0 })
                     {
-                        var location = translation?.GetValueOrDefault(ip.Location);
-                        if (!string.IsNullOrEmpty(location))
-                            ip.Location = location;
+                        foreach (var ip in items)
+                        {
+                            var location = translation?.GetValueOrDefault(ip.Location);
+                            if (!string.IsNullOrEmpty(location))
+                                ip.Location = location;
+                        }
                     }
                 }
-            }
-            catch
-            {
-                // ignored
+                catch
+                {
+                    // ignored
+                }
             }
         }
     }
