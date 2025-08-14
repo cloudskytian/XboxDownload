@@ -877,7 +877,7 @@ public partial class SpeedTestViewModel : ViewModelBase
     /// <summary>
     /// 上传在中国大陆区域测速良好的 Akamai 节点信息。
     /// 仅在启用上传功能、界面显示上传选项、当前语言为简体中文，
-    /// 且 IP 项中存在指定亚洲地区（如香港、日本等）测速大于等于 15 的节点时才会执行上传。
+    /// 且 IP 项中存在指定亚洲地区（如香港、日本等）测速大于等于 20 的节点时才会执行上传。
     /// 上传前通过 API 判断是否处于中国大陆地区（排除港澳台）。
     /// </summary>
     private async Task UploadPreferredAkamaiIpsIfInChinaAsync()
@@ -890,10 +890,10 @@ public partial class SpeedTestViewModel : ViewModelBase
         var preferredRegions = new[] { "香港", "台湾", "日本", "韩国", "新加坡" };
         var now = DateTime.UtcNow;
         
-        // 过滤：测速>=15，优选区域，且48小时内未上传过
+        // 过滤：测速>=20，优选区域，且48小时内未上传过
         var list = IpItems
             .Where(p =>
-                p.Speed >= 15 &&
+                p.Speed >= 20 &&
                 preferredRegions.Any(r => p.Location.Contains(r)) &&
                 (!_uploadedIpTimes.TryGetValue(p.Ip, out var lastTime) || (now - lastTime) > TimeSpan.FromHours(48))
             )

@@ -294,7 +294,7 @@
                     </StackPanel>
                     
                     <StackPanel Orientation="Horizontal" Grid.Column="1" Margin="0 1" Spacing="5">
-                        <CheckBox Content="上传" ToolTip.Tip="当某 Akamai IP 节点对中国大陆的测试下载速度超过 15MB/s 时，系统将自动收录该 IP 至优选列表。（仅收录香港、台湾、日本、韩国、新加坡地区的 IP，非中国大陆用户请勿启用此功能））"
+                        <CheckBox Content="上传" ToolTip.Tip="当某 Akamai IP 节点对中国大陆的测试下载速度超过 20MB/s 时，系统将自动收录该 IP 至优选列表。（仅收录香港、台湾、日本、韩国、新加坡地区的 IP，非中国大陆用户请勿启用此功能））"
                                   IsVisible="{Binding UploadAkamaiIpsVisible}"
                                   IsChecked="{Binding UploadAkamaiIpsEnabled}"/>
                         <Button Classes="LinkLabel" Command="{Binding ClearHostsCommand}">

@@ -157,7 +157,7 @@
     <x:String x:Key="Service.SecureDns.SelectAll">全選</x:String>
     <x:String x:Key="Service.SecureDns.InvertSelection">反選</x:String>
     <x:String x:Key="Service.SecureDns.Test">測試</x:String>
-    <x:String x:Key="Service.SecureDns.DohProxyNote">DoH 無法直連時，可啟用代理轉發請求。</x:String>
+    <x:String x:Key="Service.SecureDns.DohProxyNote">DoH 伺服器無法直連時，可啟用代理轉發請求。</x:String>
     <x:String x:Key="Service.SecureDns.DohDescription">DNS over HTTPS (DoH) 是一種使用 HTTPS 加密 DNS 請求和回應的安全協定。通過使用基於 HTTPS 的 DNS，可以幫助保護您的線上隱私和安全，並確保您的 DNS 請求不被攔截或篡改。</x:String>
     
     <x:String x:Key="Service.LocalProxy.Title">本地代理服務</x:String>
@@ -400,7 +400,7 @@
     <x:String x:Key="Store.PublisherAndDeveloper">發行/開發</x:String>
     <x:String x:Key="Store.Category">類別</x:String>
     <x:String x:Key="Store.OriginalReleaseDate">發佈日期</x:String>
-    <x:String x:Key="Store.Description">介紹</x:String>
+    <x:String x:Key="Store.Description">描述</x:String>
     <x:String x:Key="Store.Languages">語言</x:String>
     <x:String x:Key="Store.Price">售價</x:String>
     <x:String x:Key="Store.PriceComparison">比價</x:String>
@@ -412,14 +412,14 @@
     <x:String x:Key="Store.Market">商店</x:String>
     <x:String x:Key="Store.Size">容量</x:String>
     <x:String x:Key="Store.DownloadLink">下載連結 (右鍵複製)</x:String>
-    <x:String x:Key="Store.CopyGlobalDownloadLink">複製下載連結(.com 域名)</x:String>
+    <x:String x:Key="Store.CopyGlobalDownloadLink">複製下載連結</x:String>
     <x:String x:Key="Store.CopyCnDownloadLink">複製下載連結(.cn 域名)</x:String>
     <x:String x:Key="Store.CopyAzureDownloadLink">複製下載連結(Azure)</x:String>
     <x:String x:Key="Store.ViewAllDownloads">查看運行庫等所有相關下載</x:String>
     <x:String x:Key="Store.FetchingDownloadLink">正在獲取下載連結，請稍候…</x:String>
     <x:String x:Key="Store.Expires">有效期：{0}</x:String>
     <x:String x:Key="Store.UpdateAvailable">已有新版本</x:String>
-    <x:String x:Key="Store.InThisBundle">此捆綁包內容 ({0})</x:String>
+    <x:String x:Key="Store.InThisBundle">在此搭售方案中 ({0})</x:String>
     <x:String x:Key="Store.InvalidUrlOrProductIdTitle">無效 連結/ProductId</x:String>
     <x:String x:Key="Store.InvalidUrlOrProductIdMessage">請輸入有效的 連結/ProductId</x:String>
     <x:String x:Key="Store.CannotConnectServerTitle">無法連接伺服器</x:String>
