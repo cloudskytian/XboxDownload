@@ -120,6 +120,8 @@
     <x:String x:Key="Service.Service.InvalidUbisoftIpMessage">输入的 育碧 下载 IP 地址不合法。</x:String>
     <x:String x:Key="Service.Service.PortConflict">端口占用</x:String>
     <x:String x:Key="Service.Service.PortConflictMessage">以下端口被占用：&#x0a;{0}&#x0a;是否尝试强制结束这些进程？</x:String>
+    <x:String x:Key="Service.Service.ServiceEnableFailedDialogTitle">启用服务失败</x:String>
+    <x:String x:Key="Service.Service.ServiceEnableFailedDialogMessage">{0}&#x0a;&#x0a;解决方法：&#x0a;可以尝试把监听IP中的“本机 IP”改为”任意 IP“。</x:String>
     <x:String x:Key="Service.Service.HostsFileErrorTitle">Hosts 文件错误</x:String>
     <x:String x:Key="Service.Service.HostsFileErrorMessage">无法访问系统 Hosts 文件，错误详情：</x:String>
     
@@ -178,14 +180,12 @@
     <x:String x:Key="Service.SecureDns.Reset">重置</x:String>
     <x:String x:Key="Service.SecureDns.ForceEncryptionNote">注：强制启用加密DNS，不受全局设置影响。</x:String>
     
-    <x:String x:Key="Service.Listening.DnsStartFailedDialogTitle">启用 DNS 服务失败</x:String>
-    <x:String x:Key="Service.Listening.DnsStartFailedDialogMessage">启用 DNS 服务失败!&#x0a;错误信息: {0}&#x0a;&#x0a;解决方法：&#x0a;可以尝试把监听IP中的“本机 IP”改为”任意 IP“。</x:String>
+    <x:String x:Key="Service.Listening.DnsStartFailedDialogMessage">启用 DNS 服务失败!&#x0a;错误信息: {0}</x:String>
     <x:String x:Key="Service.Listening.DnsV4Query">DNSv4 查询</x:String>
     <x:String x:Key="Service.Listening.DnsV6Query">DNSv6 查询</x:String>
     <x:String x:Key="Service.Listening.DnsQueryFailed">DNS 查询失败</x:String>
     
-    <x:String x:Key="Service.Listening.TcpStartFailedDialogTitle">启用 HTTP(S) 服务失败</x:String>
-    <x:String x:Key="Service.Listening.TcpStartFailedDialogMessage">启用 HTTP(S) 服务失败!&#x0a;错误信息: {0}&#x0a;&#x0a;解决方法：&#x0a;可以尝试把监听IP中的“本机 IP”改为”任意 IP“。</x:String>
+    <x:String x:Key="Service.Listening.TcpStartFailedDialogMessage">启用 HTTP(S) 服务失败!&#x0a;错误信息: {0}</x:String>
     <x:String x:Key="Service.Listening.LocalUpload">本地上传</x:String>
     
     <x:String x:Key="SpeedTest.MenuItem.UseCustomIp">使用指定 IP</x:String>

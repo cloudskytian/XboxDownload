@@ -120,6 +120,8 @@
     <x:String x:Key="Service.Service.InvalidUbisoftIpMessage">Please enter a valid IP address for the Ubisoft download server.</x:String>
     <x:String x:Key="Service.Service.PortConflict">Port Conflict</x:String>
     <x:String x:Key="Service.Service.PortConflictMessage">The following ports are currently in use:&#x0a;{0}&#x0a;Do you want to try forcibly terminating the occupying processes?</x:String>
+    <x:String x:Key="Service.Service.ServiceEnableFailedDialogTitle">Failed to Enable the Service</x:String>
+    <x:String x:Key="Service.Service.ServiceEnableFailedDialogMessage">{0}&#x0a;&#x0a;Solution:&#x0a;Try changing the "Local IP" in the "listening IP" settings to "Any IP".</x:String>
     <x:String x:Key="Service.Service.HostsFileErrorTitle">Hosts File Error</x:String>
     <x:String x:Key="Service.Service.HostsFileErrorMessage">Failed to access the system Hosts file. Error details:</x:String>
     
@@ -177,15 +179,13 @@
     <x:String x:Key="Service.SecureDns.ClearAll">Clear All</x:String>
     <x:String x:Key="Service.SecureDns.Reset">Reset</x:String>
     <x:String x:Key="Service.SecureDns.ForceEncryptionNote">Note: Encrypted DNS enforced.</x:String>
-
-    <x:String x:Key="Service.Listening.DnsStartFailedDialogTitle">DNS Start Failed</x:String>
-    <x:String x:Key="Service.Listening.DnsStartFailedDialogMessage">Failed to start the DNS service!&#x0a;Error message: {0}&#x0a;&#x0a;Solution:&#x0a;Try changing the "Local IP" in the listening IP settings to "Any IP".</x:String>
+    
+    <x:String x:Key="Service.Listening.DnsStartFailedDialogMessage">Failed to start the DNS service!&#x0a;Error message: {0}</x:String>
     <x:String x:Key="Service.Listening.DnsV4Query">DNSv4 Query</x:String>
     <x:String x:Key="Service.Listening.DnsV6Query">DNSv6 Query</x:String>
     <x:String x:Key="Service.Listening.DnsQueryFailed">DNS Failed</x:String>
-    
-    <x:String x:Key="Service.Listening.TcpStartFailedDialogTitle">HTTP(S) Start Failed</x:String>
-    <x:String x:Key="Service.Listening.TcpStartFailedDialogMessage">Failed to start the HTTP(S) service!&#x0a;Error message: {0}&#x0a;&#x0a;Solution:&#x0a;Try changing the "Local IP" in the listening IP settings to "Any IP".</x:String>
+
+    <x:String x:Key="Service.Listening.TcpStartFailedDialogMessage">Failed to start the HTTP(S) service!&#x0a;Error message: {0}</x:String>
     <x:String x:Key="Service.Listening.LocalUpload">Local Upload</x:String>
     
     <x:String x:Key="SpeedTest.MenuItem.UseCustomIp">Use Custom IP</x:String>

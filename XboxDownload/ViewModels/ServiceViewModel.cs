@@ -87,7 +87,7 @@ public partial class ServiceViewModel : ObservableObject
         
         ToggleImage();
 
-        _ = TestIPv6();
+        _ = TestIPv6(); 
         _ = DeliveryOptimization();
         if (DateTime.UtcNow > App.Settings.NextUpdate)
         {
@@ -113,9 +113,11 @@ public partial class ServiceViewModel : ObservableObject
             AddLog(ResourceHelper.GetString("Service.Service.NoticeTitle"), ResourceHelper.GetString("Service.Service.IPv6SupportMessage"), "System");
         }
     }
-
+    
     private async Task DeliveryOptimization()
     {
+        if (!OperatingSystem.IsWindows()) return;
+        
         var doConfigOutput = await CommandHelper.RunCommandWithOutputAsync("powershell.exe", "Get-DOConfig");
         var dic = new Dictionary<string, string>();
         foreach (var line in doConfigOutput)
@@ -394,22 +396,32 @@ public partial class ServiceViewModel : ObservableObject
 
             if (IsSystemSleepPrevented) SystemSleepHelper.PreventSleep(false);
 
+            string errDnsMessage = string.Empty, errTcpMessage = string.Empty;
             var tasks = new List<Task>();
             if (IsDnsServiceEnabled)
             {
                 tasks.Add(Task.Run(async () =>
                 {
-                    await DnsConnectionListener.StartAsync();
+                    errDnsMessage = await DnsConnectionListener.StartAsync();
                 }, ListeningToken));
             }
             if (IsHttpServiceEnabled)
             {
                 tasks.Add(Task.Run(async () =>
                 {
-                    await TcpConnectionListener.StartAsync();
+                    errTcpMessage = await TcpConnectionListener.StartAsync();
                 }, ListeningToken));
             }
             await Task.WhenAll(tasks);
+            if (IsListeningFailed)
+            {
+                await DialogHelper.ShowInfoDialogAsync(
+                    ResourceHelper.GetString("Service.Service.ServiceEnableFailedDialogTitle"),
+                    string.Format(
+                        ResourceHelper.GetString("Service.Service.ServiceEnableFailedDialogMessage"),
+                        (errDnsMessage + Environment.NewLine + Environment.NewLine + errTcpMessage).Trim()),
+                    Icon.Error);
+            }
             
             await HostsHelper.ApplySystemHostsAsync(true);
         }

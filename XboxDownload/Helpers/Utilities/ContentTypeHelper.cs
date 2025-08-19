@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace XboxDownload.Helpers.Utilities;
 
-internal class ContentTypeHelper
+internal static class ContentTypeHelper
 {
     private static readonly Dictionary<string, string> Mappings = new(StringComparer.OrdinalIgnoreCase)
     {

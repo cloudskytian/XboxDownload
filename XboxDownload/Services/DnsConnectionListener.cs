@@ -8,12 +8,9 @@ using System.Net.Sockets;
 using System.Runtime.Versioning;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.DependencyInjection;
-using MsBox.Avalonia.Enums;
 using XboxDownload.Helpers.Network;
 using XboxDownload.Helpers.Resources;
-using XboxDownload.Helpers.UI;
 using XboxDownload.Helpers.Utilities;
 using XboxDownload.Models.Dns;
 using XboxDownload.Models.Host;
@@ -372,7 +369,7 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
         }
     }
     
-    public async Task StartAsync()
+    public async Task<string> StartAsync()
     {
         NetworkInterfaceDnsMap.Clear();
         var isSimplifiedChinese = App.Settings.Culture == "zh-Hans";
@@ -411,14 +408,7 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
         catch (SocketException ex)
         {
             serviceViewModel.IsListeningFailed = true;
-            await Dispatcher.UIThread.InvokeAsync(async () =>
-            {
-                await DialogHelper.ShowInfoDialogAsync(
-                    ResourceHelper.GetString("Service.Listening.DnsStartFailedDialogTitle"),
-                    string.Format( ResourceHelper.GetString("Service.Listening.DnsStartFailedDialogMessage"), ex.Message),
-                    Icon.Error);
-            });
-            return;
+            return string.Format(ResourceHelper.GetString("Service.Listening.DnsStartFailedDialogMessage"), ex.Message);
         }
         
         var localIp = IPAddress.Parse(App.Settings.LocalIp).GetAddressBytes();
@@ -521,6 +511,7 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
         await LoadForceEncryptedDomainMapAsync();
         serviceViewModel.IsDnsReady = true;
         _ = Task.Run(() => Listening(iPEndPoint));
+        return string.Empty;
     }
     
     public static async Task StopAsync()

@@ -9,8 +9,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using MsBox.Avalonia.Enums;
-using XboxDownload.Helpers.UI;
 using XboxDownload.ViewModels;
 using System.Net.Security;
 using System.Security.Authentication;
@@ -18,7 +16,6 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
 using System.Web;
-using Avalonia.Threading;
 using XboxDownload.Helpers.Network;
 using XboxDownload.Helpers.Resources;
 using XboxDownload.Helpers.Utilities;
@@ -156,7 +153,7 @@ public partial class TcpConnectionListener
         _certificate =  new X509Certificate2(cert.Export(X509ContentType.Pfx));
     }
     
-    public async Task StartAsync()
+    public Task<string> StartAsync()
     {
         var ipAddress = App.Settings.ListeningIp == "LocalIp"
             ? IPAddress.Parse(App.Settings.LocalIp)
@@ -177,14 +174,8 @@ public partial class TcpConnectionListener
         }
         catch (SocketException ex)
         {
-            await Dispatcher.UIThread.InvokeAsync(async () =>
-            {
-                await DialogHelper.ShowInfoDialogAsync(
-                    ResourceHelper.GetString("Service.Listening.TcpStartFailedDialogTitle"),
-                    string.Format( ResourceHelper.GetString("Service.Listening.TcpStartFailedDialogMessage"), ex.Message),
-                    Icon.Error);
-            });
-            return;
+            _serviceViewModel.IsListeningFailed = true;
+            return Task.FromResult(string.Format(ResourceHelper.GetString("Service.Listening.TcpStartFailedDialogMessage"), ex.Message));
         }
         
         if (OperatingSystem.IsWindows())
@@ -199,6 +190,8 @@ public partial class TcpConnectionListener
 
         _ = Task.Run(() => Listening(_httpSocket, false));
         _ = Task.Run(() => Listening(_httpsSocket, true));
+        
+        return Task.FromResult(string.Empty);
     }
     
     public static void Stop()

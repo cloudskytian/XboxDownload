@@ -6,7 +6,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
 using XboxDownload.ViewModels;
-using XboxDownload.ViewModels.Dialog;
 
 namespace XboxDownload.Views;
 
