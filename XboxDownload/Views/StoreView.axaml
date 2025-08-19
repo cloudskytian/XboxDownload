@@ -209,8 +209,8 @@
 
                 <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,5,5,2">
                     <TextBlock VerticalAlignment="Center" Text="{DynamicResource Store.InstallationGuide}"/>
-                    <Button Classes="LinkLabel" Command="{Binding QuickInstallationCommand}">
-                        <TextBlock Text="{DynamicResource Store.QuickInstallation}" IsVisible="{Binding IsWindows}"
+                    <Button Classes="LinkLabel" Command="{Binding QuickInstallationCommand}" IsVisible="{Binding IsWindows}">
+                        <TextBlock Text="{DynamicResource Store.QuickInstallation}"
                                    Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                     </Button>
                     <Button Classes="LinkLabel" Command="{Binding OpenWebStoreCommand}">
