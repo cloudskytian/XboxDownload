@@ -313,8 +313,8 @@ public partial class ServiceViewModel : ObservableObject
             EpicIp = App.Settings.EpicIp;
             UbisoftIp = App.Settings.UbisoftIp;
             
-            if (IsDnsServiceEnabled) await DnsConnectionListener.StopAsync();
-            await HostsHelper.ApplySystemHostsAsync();
+            _ = HostsHelper.ApplySystemHostsAsync();
+            if (IsDnsServiceEnabled) _ = DnsConnectionListener.StopAsync();
             if (IsHttpServiceEnabled) TcpConnectionListener.Stop();
 
             SystemSleepHelper.RestoreSleep();

@@ -149,7 +149,8 @@ public partial class TcpConnectionListener
         }
         
         req.CertificateExtensions.Add(sanBuilder.Build());
-        var cert = req.CreateSelfSigned(DateTimeOffset.Now, DateTimeOffset.Now.AddYears(1));
+        var utcNow = DateTimeOffset.UtcNow;
+        var cert = req.CreateSelfSigned(utcNow, utcNow.AddYears(1));
         _certificate =  new X509Certificate2(cert.Export(X509ContentType.Pfx));
     }
     
