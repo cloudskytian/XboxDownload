@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.DependencyInjection;
 using XboxDownload.Helpers.Network;
 using XboxDownload.Helpers.Resources;
+using XboxDownload.Helpers.System;
 using XboxDownload.Helpers.Utilities;
 using XboxDownload.Models.Dns;
 using XboxDownload.Models.Host;
@@ -374,22 +375,34 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
         NetworkInterfaceDnsMap.Clear();
         var isSimplifiedChinese = App.Settings.Culture == "zh-Hans";
         
-        var adapters = NetworkAdapterHelper.GetValidAdapters();
         IPEndPoint? iPEndPoint = null;
         if (string.IsNullOrEmpty(serviceViewModel.DnsIp))
         {
-            foreach (var adapter in adapters)
+            if (serviceViewModel.SelectedAdapter?.Adapter != null)
             {
-                var adapterProperties = adapter.GetIPProperties();
-                foreach (var dns in adapterProperties.DnsAddresses)
+                if (OperatingSystem.IsWindows())
                 {
-                    if (dns.AddressFamily != AddressFamily.InterNetwork) continue;
-                    if (dns.ToString() == App.Settings.LocalIp || IPAddress.IsLoopback(dns))
-                        continue;
-                    iPEndPoint = new IPEndPoint(dns, Port);
-                    break;
+                    var adapterProperties = serviceViewModel.SelectedAdapter.Adapter.GetIPProperties();
+                    foreach (var dns in adapterProperties.DnsAddresses)
+                    {
+                        if (dns.AddressFamily != AddressFamily.InterNetwork) continue;
+                        if (dns.ToString() == App.Settings.LocalIp || IPAddress.IsLoopback(dns))
+                            continue;
+                        iPEndPoint = new IPEndPoint(dns, Port);
+                        break;
+                    }
                 }
-                if (iPEndPoint != null) break;
+                else if (OperatingSystem.IsLinux())
+                {
+                    var dns = await GetDnsServers(serviceViewModel.SelectedAdapter.Adapter.Name);
+                    if (dns.AddressFamily == AddressFamily.InterNetwork &&
+                        dns.ToString() != App.Settings.LocalIp &&
+                        dns.ToString() != "255.255.255.255" && 
+                        !IPAddress.IsLoopback(dns))
+                    {
+                        iPEndPoint = new IPEndPoint(dns, Port);
+                    }
+                }
             }
             iPEndPoint ??= new IPEndPoint(IPAddress.Parse(isSimplifiedChinese ? "114.114.114.114" : "8.8.8.8"), Port);
             serviceViewModel.DnsIp = iPEndPoint.Address.ToString();
@@ -480,6 +493,7 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
             if (OperatingSystem.IsWindows())
             {
                 using var localMachine = Microsoft.Win32.Registry.LocalMachine;
+                var adapters = NetworkAdapterHelper.GetValidAdapters();
                 foreach (var adapter in adapters)
                 {
                     var dns = new DnsServer
@@ -489,7 +503,11 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
                     };
                     NetworkInterfaceDnsMap.TryAdd(adapter.Id, dns);
                 }
-                ApplyDns(App.Settings.LocalIp);
+                await ApplyDns(App.Settings.LocalIp);
+            }
+            else if (OperatingSystem.IsLinux())
+            {
+                await CommandHelper.RunCommandAsync("resolvectl", $"dns {serviceViewModel.SelectedAdapter!.Adapter.Name} {App.Settings.LocalIp}");
             }
         }
         
@@ -516,7 +534,7 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
     
     public static async Task StopAsync()
     {
-        ApplyDns();
+        await ApplyDns();
         
         try
         {
@@ -543,10 +561,32 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
                 // Optional
             }
         }
-
         _socket?.Close();
         _socket?.Dispose();
         _socket = null;
+    }
+
+    private static async Task<IPAddress> GetDnsServers(string name)
+    {
+        if (File.Exists("/usr/bin/nmcli"))
+        {
+            var result = await CommandHelper.RunCommandWithOutputAsync("nmcli", $"device show {name} ");
+            foreach (var parts in from line in result where !string.IsNullOrWhiteSpace(line) && line.Contains(':') select line.Split(':', 2) into parts let key = parts[0].Trim() let value = parts[1].Trim() where key.StartsWith("IP4.DNS") select parts)
+            {
+                if (IPAddress.TryParse(parts[1].Trim(), out var address))
+                    return address;
+            }
+        }
+        if (File.Exists("/usr/bin/resolvectl"))
+        {
+            var result = await CommandHelper.RunCommandWithOutputAsync("resolvectl", $"status {name}");
+            foreach (var parts in from line in result where !string.IsNullOrWhiteSpace(line) && line.Contains(':') select line.Split(':', 2) into parts let key = parts[0].Trim() let value = parts[1].Trim() where key.StartsWith("DNS Servers") select parts)
+            {
+                if (IPAddress.TryParse(parts[1].Trim(), out var address))
+                    return address;
+            }
+        }
+        return IPAddress.None;
     }
 
     public string DnsV4Query = ResourceHelper.GetString("Service.Listening.DnsV4Query"),
@@ -653,12 +693,11 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
         }
     }
     
-    private static void ApplyDns(string? dns = null)
+    private static async Task ApplyDns(string? dns = null)
     {
-        if (NetworkInterfaceDnsMap.IsEmpty) return;
-
         if (OperatingSystem.IsWindows())
         {
+            if (NetworkInterfaceDnsMap.IsEmpty) return;
             try
             {
                 using var key = Microsoft.Win32.Registry.LocalMachine;
@@ -688,6 +727,10 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
             {
                 Console.WriteLine($"Failed to access registry: {ex}");
             }
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            await CommandHelper.RunCommandAsync("systemctl", "restart systemd-resolved");
         }
     }
     

@@ -105,7 +105,7 @@ public partial class MainWindow : Window
     
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-        if (_isSystemShutdown)
+        if (_isSystemShutdown || OperatingSystem.IsLinux())
         {
             // Allow actual shutdown on system exit
             base.OnClosing(e);

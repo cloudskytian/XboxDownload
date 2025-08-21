@@ -11,8 +11,8 @@
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="6">
                 <HeaderedContentControl Grid.Column="0" Header="{DynamicResource Service.LocalProxy.ProxyRules}">
                     <TextBox BorderThickness="0" AcceptsReturn="True"
-                             SelectionStart="{Binding SelectionStart}" 
-                             SelectionEnd="{Binding SelectionEnd}"
+                             SelectionStart="{Binding SelectionStart, Mode=TwoWay}" 
+                             SelectionEnd="{Binding SelectionEnd, Mode=TwoWay}"
                              Text="{Binding RulesText}"
                              Watermark="{DynamicResource Service.LocalProxy.ProxyRulesWatermark}"/>
                 </HeaderedContentControl>

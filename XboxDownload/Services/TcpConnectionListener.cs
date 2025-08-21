@@ -18,6 +18,7 @@ using System.Threading;
 using System.Web;
 using XboxDownload.Helpers.Network;
 using XboxDownload.Helpers.Resources;
+using XboxDownload.Helpers.System;
 using XboxDownload.Helpers.Utilities;
 
 namespace XboxDownload.Services;
@@ -154,7 +155,7 @@ public partial class TcpConnectionListener
         _certificate =  new X509Certificate2(cert.Export(X509ContentType.Pfx));
     }
     
-    public Task<string> StartAsync()
+    public async Task<string> StartAsync()
     {
         var ipAddress = App.Settings.ListeningIp == "LocalIp"
             ? IPAddress.Parse(App.Settings.LocalIp)
@@ -176,7 +177,7 @@ public partial class TcpConnectionListener
         catch (SocketException ex)
         {
             _serviceViewModel.IsListeningFailed = true;
-            return Task.FromResult(string.Format(ResourceHelper.GetString("Service.Listening.TcpStartFailedDialogMessage"), ex.Message));
+            return string.Format(ResourceHelper.GetString("Service.Listening.TcpStartFailedDialogMessage"), ex.Message);
         }
         
         if (OperatingSystem.IsWindows())
@@ -186,13 +187,33 @@ public partial class TcpConnectionListener
             store.Add(_certificate!);
             store.Close();
         }
+        else if (OperatingSystem.IsLinux())
+        {
+            // Export PEM from X509Certificate2
+            var raw = _certificate!.Export(X509ContentType.Cert);
+            var pem = "-----BEGIN CERTIFICATE-----\n"
+                      + Convert.ToBase64String(raw, Base64FormattingOptions.InsertLineBreaks)
+                      + "\n-----END CERTIFICATE-----\n";
+
+            // Target path (needs root)
+            var certPath = $"/usr/local/share/ca-certificates/{nameof(XboxDownload)}.crt";
+
+            // Write PEM file
+            if (File.Exists(certPath))
+                File.Delete(certPath);
+            await File.WriteAllTextAsync(certPath, pem);
+
+            await CommandHelper.RunCommandAsync("update-ca-certificates", "");
+
+            //Console.WriteLine("Certificate installed to Linux system trust store.");
+        }
         
         _isSimplifiedChinese = App.Settings.Culture == "zh-Hans";
 
         _ = Task.Run(() => Listening(_httpSocket, false));
         _ = Task.Run(() => Listening(_httpsSocket, true));
         
-        return Task.FromResult(string.Empty);
+        return string.Empty;
     }
     
     public static void Stop()
@@ -222,6 +243,14 @@ public partial class TcpConnectionListener
                 store.Certificates.Find(X509FindType.FindBySubjectDistinguishedName, $"CN={nameof(XboxDownload)}", false);
             if (certificates.Count > 0) store.RemoveRange(certificates);
             store.Close();
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            var certPath = $"/usr/local/share/ca-certificates/{nameof(XboxDownload)}.crt";
+            if (File.Exists(certPath)) 
+                File.Delete(certPath);
+
+            _ = CommandHelper.RunCommandAsync("update-ca-certificates", "");
         }
     }
     

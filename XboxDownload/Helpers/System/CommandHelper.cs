@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace XboxDownload.Helpers.System;
@@ -64,7 +65,20 @@ public static class CommandHelper
             }
             else if (OperatingSystem.IsLinux())
             {
-                _ = RunCommandAsync("/bin/bash", "-c \"sudo systemd-resolve --flush-caches\"");
+                if (File.Exists("/usr/bin/resolvectl"))
+                {
+                    _ = RunCommandAsync("resolvectl", "flush-caches");
+                }
+                else if (File.Exists("/usr/bin/systemd-resolve"))
+                {
+                    _ = RunCommandAsync("systemd-resolve", "--flush-caches");
+                }
+                else
+                {
+                    // 退而求其次，尝试重启 nscd 或 dnsmasq
+                    _ = RunCommandAsync("systemctl", "restart nscd");
+                    _ = RunCommandAsync("systemctl", "restart dnsmasq");
+                }
             }
         }
         catch

@@ -620,6 +620,24 @@ public partial class SpeedTestViewModel : ViewModelBase
                     UseShellExecute = true
                 });
             }
+            else if (OperatingSystem.IsMacOS())
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "/usr/bin/sudo",
+                    Arguments = "nano {PathHelper.SystemHostsPath}",
+                    UseShellExecute = true
+                });
+            }
+            else if (OperatingSystem.IsLinux())
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "xdg-open",
+                    Arguments = PathHelper.SystemHostsPath,
+                    UseShellExecute = true
+                });
+            }
         }
         catch (Exception ex)
         {
@@ -924,12 +942,13 @@ public partial class SpeedTestViewModel : ViewModelBase
             return;
         
         // 发送 POST 请求上传到服务端接口
-        await HttpClientHelper.GetStringContentAsync(
+        using var response = await HttpClientHelper.SendRequestAsync(
             UpdateService.Website + "/Akamai/Better",
             "POST",
             jsonArray.ToJsonString(),
             "application/json",
             name: "XboxDownload");
+        //Console.WriteLine(response?.StatusCode);
 
         var filePath = PathHelper.GetResourceFilePath("IP.AkamaiV2.txt");
         if (File.Exists(filePath)) File.SetLastWriteTime(filePath, DateTime.UtcNow.AddDays(-7));

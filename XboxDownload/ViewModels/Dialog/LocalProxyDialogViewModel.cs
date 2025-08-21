@@ -99,7 +99,6 @@ public partial class LocalProxyDialogViewModel : ObservableObject
         {
             var hosts = string.Join(Environment.NewLine, rule);
             RulesText = hosts + Environment.NewLine + sb;
-            SelectionStart = 0;
             SelectionEnd = hosts.Length;
         }
         else

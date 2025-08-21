@@ -52,9 +52,24 @@ namespace XboxDownload.Helpers.IO
                     throw;
                 }
             }
-            else
+            else if (OperatingSystem.IsLinux())
             {
-                // 待完成...
+                try
+                {
+                    await File.WriteAllTextAsync(PathHelper.SystemHostsPath, content);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[HostsHelper] Write error: {ex.Message}");
+                    throw;
+                }
+                /*
+                var tempFile = Path.Combine(Path.GetTempPath(), "hosts_temp");
+                await File.WriteAllTextAsync(tempFile, content);
+                File.Move(tempFile, "/etc/hosts", true); 
+                if (File.Exists(tempFile))
+                    File.Delete(tempFile);
+                */
             }
         }
 

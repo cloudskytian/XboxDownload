@@ -228,6 +228,10 @@ public partial class ServiceViewModel : ObservableObject
             {
                 await CommandHelper.RunCommandAsync("powershell", "Get-NetAdapter -Physical | Set-DnsClientServerAddress -ResetServerAddresses");
             }
+            else if (OperatingSystem.IsLinux())
+            {
+                await CommandHelper.RunCommandAsync("systemctl", "restart systemd-resolved");
+            }
             
             await DialogHelper.ShowInfoDialogAsync(
                 ResourceHelper.GetString("Service.Service.RepairLocalDnsSuccessTitle"),
@@ -690,7 +694,7 @@ public partial class ServiceViewModel : ObservableObject
     public ObservableCollection<AdapterInfo> AdapterList { get; } = [];
 
     [ObservableProperty]
-    private AdapterInfo? _selectedAdapter;
+    public AdapterInfo? _selectedAdapter;
 
     [ObservableProperty]
     private string _traffic = string.Empty, _adapterInfo = string.Empty;
