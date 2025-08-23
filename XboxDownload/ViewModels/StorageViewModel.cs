@@ -31,6 +31,8 @@ namespace XboxDownload.ViewModels;
 
 public partial class StorageViewModel : ObservableObject
 {
+    public static bool IsWindows => OperatingSystem.IsWindows();
+    
     private readonly ConcurrentDictionary<string, MbrCacheEntry> _mbrMap = new();
 
     private static readonly string MbrFilePath = PathHelper.GetLocalFilePath("MbrBackup.json");
@@ -256,6 +258,9 @@ public partial class StorageViewModel : ObservableObject
         {
             var json = JsonSerializer.Serialize(_mbrMap, JsonHelper.Indented);
             await File.WriteAllTextAsync(MbrFilePath, json);
+            
+            if (!OperatingSystem.IsWindows())
+                _ = PathHelper.FixOwnershipAsync(MbrFilePath);
         }
 
         StorageMappings.AddRange(entries);

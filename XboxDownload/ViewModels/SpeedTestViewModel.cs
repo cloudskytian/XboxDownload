@@ -603,48 +603,6 @@ public partial class SpeedTestViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
-    private static void EditHosts()
-    {
-        if (!File.Exists(PathHelper.SystemHostsPath))
-            return;
-
-        try
-        {
-            if (OperatingSystem.IsWindows())
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "notepad.exe",
-                    Arguments = PathHelper.SystemHostsPath,
-                    UseShellExecute = true
-                });
-            }
-            else if (OperatingSystem.IsMacOS())
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "/usr/bin/sudo",
-                    Arguments = "nano {PathHelper.SystemHostsPath}",
-                    UseShellExecute = true
-                });
-            }
-            else if (OperatingSystem.IsLinux())
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "xdg-open",
-                    Arguments = PathHelper.SystemHostsPath,
-                    UseShellExecute = true
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Failed to open hosts file: " + ex.Message);
-        }
-    }
-
     #endregion
     
     #region Sorting

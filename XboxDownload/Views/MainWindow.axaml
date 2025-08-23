@@ -27,7 +27,9 @@
                         <MenuItem Header="{DynamicResource Menu.Theme.Light}" Command="{Binding SwitchThemeCommand}" CommandParameter="Light"/>
                         <MenuItem Header="{DynamicResource Menu.Theme.Dark}" Command="{Binding SwitchThemeCommand}" CommandParameter="Dark"/>
                     </MenuItem>
-                    <MenuItem Header="{DynamicResource Menu.RunAtStartup}" Click="ShowStartupSettingsDialogAsync"/>
+                    <MenuItem Header="{DynamicResource Menu.RunAtStartup}" 
+                              IsVisible="{Binding IsWindows}"
+                              Click="ShowStartupSettingsDialogAsync"/>
                     <Separator/>
                     <MenuItem Header="{DynamicResource Menu.Exit}" Command="{Binding ExitCommand}"/>
                 </MenuItem>
@@ -69,7 +71,8 @@
             <TabItem x:Name="TabStore" Header="{DynamicResource Tab.Store}">
                 <views:StoreView DataContext="{Binding StoreViewModel}"/>
             </TabItem>
-            <TabItem x:Name="TabTools" Header="{DynamicResource Tab.Tools}">
+            <TabItem x:Name="TabTools" Header="{DynamicResource Tab.Tools}"
+                     IsVisible="{Binding IsWindows}">
                 <views:ToolsView DataContext="{Binding ToolsViewModel}"/>
             </TabItem>
         </TabControl>

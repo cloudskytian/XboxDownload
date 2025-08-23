@@ -187,6 +187,27 @@ public partial class TcpConnectionListener
             store.Add(_certificate!);
             store.Close();
         }
+        else if (OperatingSystem.IsMacOS())
+        {
+            //sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain yourcert.crt
+            // 导出为 .crt 文件（DER 格式）
+            var tempPath = Path.Combine(Path.GetTempPath(), "temp-cert.crt");
+            await File.WriteAllBytesAsync(tempPath, _certificate!.Export(X509ContentType.Cert));
+            
+            try
+            {
+                // 需要 sudo 执行
+                await CommandHelper.RunCommandAsync("security",
+                    $"add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain \"{tempPath}\"");
+            }
+            finally
+            {
+                // 删除临时文件
+                if (File.Exists(tempPath))
+                    File.Delete(tempPath);
+            }
+
+        }
         else if (OperatingSystem.IsLinux())
         {
             // Export PEM from X509Certificate2
@@ -239,10 +260,15 @@ public partial class TcpConnectionListener
         {
             using X509Store store = new(StoreName.Root, StoreLocation.LocalMachine);
             store.Open(OpenFlags.ReadWrite);
-            var certificates =
+            var certificates=
                 store.Certificates.Find(X509FindType.FindBySubjectDistinguishedName, $"CN={nameof(XboxDownload)}", false);
             if (certificates.Count > 0) store.RemoveRange(certificates);
             store.Close();
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            _ = CommandHelper.RunCommandAsync("security",
+                $"delete-certificate -c \"{nameof(XboxDownload)}\" /Library/Keychains/System.keychain");
         }
         else if (OperatingSystem.IsLinux())
         {

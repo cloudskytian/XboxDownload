@@ -130,4 +130,18 @@ public partial class SpeedTestView : UserControl
             vm.FilterByLocationCommand.Execute(null);
         }
     }
+    
+    private async void ShowEditHostsDialogAsync(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (VisualRoot is not Window window) return;
+            var dialog = new Dialog.EditHostsDialog();
+            await dialog.ShowDialog(window);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in show dialog: {ex}");
+        }
+    }
 }

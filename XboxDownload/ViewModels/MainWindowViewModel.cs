@@ -37,6 +37,8 @@ public partial class MainWindowViewModel(
     [ObservableProperty]
     private int _selectedTabIndex;
     
+    public static bool IsWindows => OperatingSystem.IsWindows();
+    
     partial void OnSelectedTabIndexChanged(int value)
     {
         if (value == 5)
@@ -184,7 +186,7 @@ public partial class MainWindowViewModel(
                         {
                             // ignored
                         }
-                        Program.Listener.Close();
+                        Program.Listener?.Close();
                         Program.Listener = null;
                     }
                 }

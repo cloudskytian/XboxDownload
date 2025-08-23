@@ -33,6 +33,9 @@ public static class SettingsManager
         {
             var json = JsonSerializer.Serialize(settings, JsonHelper.Indented);
             File.WriteAllText(SettingsFilePath, json);
+            
+            if (!OperatingSystem.IsWindows())
+                _ = PathHelper.FixOwnershipAsync(SettingsFilePath);
         }
         catch (Exception ex)
         {

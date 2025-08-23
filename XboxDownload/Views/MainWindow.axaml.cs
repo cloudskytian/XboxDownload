@@ -42,22 +42,6 @@ public partial class MainWindow : Window
                 {
                     try
                     {
-                        Program.Listener?.Close(); 
-                        var socketPath = Path.Combine(Path.GetTempPath(), $"{nameof(XboxDownload)}.sock");
-                        if (File.Exists(socketPath))
-                            File.Delete(socketPath);
-                    }
-                    catch
-                    {
-                        // ignored
-                    }
-                }
-                
-                // macOS/Linux 退出时清理 Socket 文件
-                if (!OperatingSystem.IsWindows())
-                {
-                    try
-                    {
                         using var client = new Socket(AddressFamily.Unix, SocketType.Stream, 0);
                         var path = Path.Combine(Path.GetTempPath(), $"{nameof(XboxDownload)}.sock");
                         // ReSharper disable once MethodHasAsyncOverload
@@ -77,7 +61,7 @@ public partial class MainWindow : Window
                             {
                                 // ignored
                             }
-                            Program.Listener.Close();
+                            Program.Listener?.Close();
                             Program.Listener = null;
                         }
                     }
@@ -105,7 +89,7 @@ public partial class MainWindow : Window
     
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-        if (_isSystemShutdown || OperatingSystem.IsLinux())
+        if (_isSystemShutdown || !OperatingSystem.IsWindows())
         {
             // Allow actual shutdown on system exit
             base.OnClosing(e);

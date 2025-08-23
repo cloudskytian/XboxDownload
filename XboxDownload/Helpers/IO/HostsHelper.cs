@@ -52,7 +52,7 @@ namespace XboxDownload.Helpers.IO
                     throw;
                 }
             }
-            else if (OperatingSystem.IsLinux())
+            else 
             {
                 try
                 {
@@ -63,13 +63,6 @@ namespace XboxDownload.Helpers.IO
                     Console.WriteLine($"[HostsHelper] Write error: {ex.Message}");
                     throw;
                 }
-                /*
-                var tempFile = Path.Combine(Path.GetTempPath(), "hosts_temp");
-                await File.WriteAllTextAsync(tempFile, content);
-                File.Move(tempFile, "/etc/hosts", true); 
-                if (File.Exists(tempFile))
-                    File.Delete(tempFile);
-                */
             }
         }
 

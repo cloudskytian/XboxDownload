@@ -8,7 +8,8 @@
              x:DataType="vm:StorageViewModel">
     
     <Grid RowDefinitions="*,Auto">
-        <HeaderedContentControl Grid.Row="0" Header="{DynamicResource Storage.XboxExternalStorageDevice}">
+        <HeaderedContentControl Grid.Row="0" Header="{DynamicResource Storage.XboxExternalStorageDevice}"
+                                IsEnabled="{Binding IsWindows}">
             <Grid RowDefinitions="*,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="10" RowSpacing="6" Margin="0,0,10,0">
                 <DataGrid Grid.Row="0" Grid.Column="0" IsReadOnly="True" CanUserSortColumns="False" GridLinesVisibility="All"
                           BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"

@@ -29,7 +29,6 @@ using XboxDownload.Models.Services;
 using XboxDownload.Models.SpeedTest;
 using XboxDownload.Services;
 
-
 namespace XboxDownload.ViewModels;
 
 public partial class ServiceViewModel : ObservableObject
@@ -214,7 +213,7 @@ public partial class ServiceViewModel : ObservableObject
     }
     
     [RelayCommand]
-    private static async Task RepairLocalDnsAsync()
+    private async Task RepairLocalDnsAsync()
     {
         var confirm = await DialogHelper.ShowConfirmDialogAsync(
             ResourceHelper.GetString("Service.Service.RepairLocalDnsDialogTitle"),
@@ -227,6 +226,40 @@ public partial class ServiceViewModel : ObservableObject
             if (OperatingSystem.IsWindows())
             {
                 await CommandHelper.RunCommandAsync("powershell", "Get-NetAdapter -Physical | Set-DnsClientServerAddress -ResetServerAddresses");
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                var dic = new Dictionary<string, string>(); // key: device(enX), value: service name
+                var currentService = string.Empty;
+                var result = await CommandHelper.RunCommandWithOutputAsync("networksetup", "-listnetworkserviceorder");
+                foreach (var line in result)
+                {
+                    if (string.IsNullOrWhiteSpace(line))
+                    {
+                        currentService = string.Empty;
+                        continue;
+                    }
+
+                    if (line.StartsWith('(') && !line.Contains("Device:"))
+                    {
+                        currentService = line[(line.IndexOf(')') + 1)..].Trim();
+                    }
+                    else if (line.Contains("Device:"))
+                    {
+                        var idx = line.IndexOf("Device:", StringComparison.Ordinal);
+                        if (idx < 0) continue;
+                        var device = line.Substring(idx + "Device:".Length).Trim().TrimEnd(')');
+                        dic[device] = currentService;
+                    }
+                }
+
+                foreach (var adapter in AdapterList)
+                {
+                    if (dic.TryGetValue(adapter.Adapter.Name, out var serviceName))
+                    {
+                        await CommandHelper.RunCommandAsync("networksetup", $"-setdnsservers \"{serviceName}\" \"Empty\"");
+                    }
+                }
             }
             else if (OperatingSystem.IsLinux())
             {
@@ -693,8 +726,7 @@ public partial class ServiceViewModel : ObservableObject
     
     public ObservableCollection<AdapterInfo> AdapterList { get; } = [];
 
-    [ObservableProperty]
-    public AdapterInfo? _selectedAdapter;
+    [ObservableProperty] private AdapterInfo? _selectedAdapter;
 
     [ObservableProperty]
     private string _traffic = string.Empty, _adapterInfo = string.Empty;

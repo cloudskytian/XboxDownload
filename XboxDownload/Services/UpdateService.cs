@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.DependencyInjection;
 using MsBox.Avalonia.Enums;
+using XboxDownload.Helpers.IO;
 using XboxDownload.Helpers.Network;
 using XboxDownload.Helpers.Resources;
 using XboxDownload.Helpers.System;
@@ -226,9 +227,17 @@ public static partial class UpdateService
     private static async Task SaveToFileAsync(FileInfo fi, string content)
     {
         if (!Directory.Exists(fi.DirectoryName))
+        {
             Directory.CreateDirectory(fi.DirectoryName!);
+            
+            if (!OperatingSystem.IsWindows())
+                await PathHelper.FixOwnershipAsync(fi.DirectoryName!, true);
+        }
         await File.WriteAllTextAsync(fi.FullName, content);
         fi.Refresh();
+        
+        if (!OperatingSystem.IsWindows())
+            await PathHelper.FixOwnershipAsync(fi.FullName);
     }
     
     public static async Task<string> FetchAppDownloadUrlAsync(string product, CancellationToken token = default)

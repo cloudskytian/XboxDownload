@@ -53,12 +53,13 @@ public partial class App : Application
     private void LoadLanguage()
     {
         var culture = Settings.Culture;
+
         if (culture is not ("en-US" or "zh-Hans" or "zh-Hant"))
         {
             culture = CultureInfo.CurrentUICulture.Name switch
             {
-                "zh" or "zh-CN" or "zh-SG" or "zh-Hans" => "zh-Hans",
-                "zh-TW" or "zh-HK" or "zh-MO" or "zh-Hant" => "zh-Hant",
+                "zh" or "zh-CN" or "zh-SG" or "zh-Hans" or "zh-Hans-CN" or "zh-Hans-SG" => "zh-Hans",
+                "zh-HK" or "zh-MO" or "zh-TW" or "zh-Hant" or "zh-Hant-HK" or "zh-Hant-MO" or "zh-Hant-TW" => "zh-Hant",
                 _ => "en-US"
             };
             if (string.IsNullOrEmpty(Settings.DohServerId))

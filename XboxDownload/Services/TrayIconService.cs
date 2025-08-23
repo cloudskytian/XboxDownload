@@ -139,7 +139,7 @@ public class TrayIconService : IDisposable
                         {
                             // ignored
                         }
-                        Program.Listener.Close();
+                        Program.Listener?.Close();
                         Program.Listener = null;
                     }
                 }

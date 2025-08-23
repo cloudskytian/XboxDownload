@@ -8,6 +8,7 @@ using Avalonia.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MsBox.Avalonia.Enums;
+using XboxDownload.Helpers.IO;
 using XboxDownload.Helpers.Resources;
 using XboxDownload.Helpers.System;
 using XboxDownload.Helpers.UI;
@@ -77,6 +78,9 @@ public partial class CdnViewModel : ObservableObject
             {
                 AkamaiHost2 += Environment.NewLine;
                 await File.WriteAllTextAsync(_serviceViewModel.AkamaiFilePath, AkamaiHost2);
+                
+                if (!OperatingSystem.IsWindows())
+                    _ = PathHelper.FixOwnershipAsync(_serviceViewModel.AkamaiFilePath);
             }
         }
         catch

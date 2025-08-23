@@ -8,21 +8,21 @@
         x:DataType="dialog:ResolveDomainDialogViewModel"
         WindowStartupLocation="CenterOwner"
         Width="980" Height="600"
-        Title="{DynamicResource Service.ResolveDomain.Title}">
+        Title="{DynamicResource Host.ResolveDomain.Title}">
         
         <Grid RowDefinitions="Auto,*,Auto">
             <Border Grid.Row="0" Margin="10">
-                <HeaderedContentControl Header="{DynamicResource Service.ResolveDomain.Settings}">
+                <HeaderedContentControl Header="{DynamicResource Host.ResolveDomain.Settings}">
                     <DockPanel LastChildFill="True" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" Spacing="10">
-                            <TextBlock VerticalAlignment="Center" Text="{DynamicResource Service.ResolveDomain.DomainName}"/>
-                            <TextBox x:Name="Host" MinWidth="280" Watermark="{DynamicResource Service.ResolveDomain.DomainNameWatermark}"
+                            <TextBlock VerticalAlignment="Center" Text="{DynamicResource Host.ResolveDomain.DomainName}"/>
+                            <TextBox x:Name="Host" MinWidth="280" Watermark="{DynamicResource Host.ResolveDomain.DomainNameWatermark}"
                                      Text="{Binding HostnameToResolve}" KeyDown="Host_KeyDown"/>
-                            <TextBlock VerticalAlignment="Center" Text="{DynamicResource Service.ResolveDomain.IpAddress}"/>
+                            <TextBlock VerticalAlignment="Center" Text="{DynamicResource Host.ResolveDomain.IpAddress}"/>
                             <TextBox x:Name="Ip" MinWidth="280" Text="{Binding ResolveIp}" IsReadOnly="True"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-                            <Button MinWidth="80" HorizontalContentAlignment="Center" Content="{DynamicResource Service.ResolveDomain.Confirm}"
+                            <Button MinWidth="80" HorizontalContentAlignment="Center" Content="{DynamicResource Host.ResolveDomain.Confirm}"
                                     Command="{Binding ConfirmCommand}"/>
                         </StackPanel>
                     </DockPanel>
@@ -30,7 +30,7 @@
             </Border>
                
             <Border Grid.Row="1" Margin="10,0,10,10">
-                    <HeaderedContentControl Header="{DynamicResource Service.ResolveDomain.Title}">
+                    <HeaderedContentControl Header="{DynamicResource Host.ResolveDomain.Title}">
                         <Grid ColumnDefinitions="*,200,*" RowDefinitions="*,Auto" RowSpacing="6">
                             
                             <DataGrid x:Name="MyDataGrid" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" GridLinesVisibility="All"
@@ -38,7 +38,7 @@
                                       ItemsSource="{Binding ResolveHostMappings}"
                                       SelectedItem="{Binding SelectedItem}">
                                 <DataGrid.Columns>
-                                    <DataGridTemplateColumn MinWidth="70" Header="{DynamicResource Service.ResolveDomain.Select}">
+                                    <DataGridTemplateColumn MinWidth="70" Header="{DynamicResource Host.ResolveDomain.Select}">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -48,7 +48,7 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     
-                                    <DataGridTemplateColumn Header="{DynamicResource Service.ResolveDomain.DohServer}" MinWidth="265">
+                                    <DataGridTemplateColumn Header="{DynamicResource Host.ResolveDomain.DohServer}" MinWidth="265">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock VerticalAlignment="Center" Margin="10,0"
@@ -58,7 +58,7 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     
-                                    <DataGridTemplateColumn Header="{DynamicResource Service.ResolveDomain.IpAddress2}" MinWidth="220">
+                                    <DataGridTemplateColumn Header="{DynamicResource Host.ResolveDomain.IpAddress2}" MinWidth="220">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding ResolvedIp}" 
@@ -71,7 +71,7 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     
-                                    <DataGridTemplateColumn Header="{DynamicResource Service.ResolveDomain.Delay}" MinWidth="70">
+                                    <DataGridTemplateColumn Header="{DynamicResource Host.ResolveDomain.Delay}" MinWidth="70">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Delay}" TextAlignment="Right"
@@ -80,7 +80,7 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     
-                                    <DataGridTemplateColumn Header="{DynamicResource Service.ResolveDomain.Location}" Width="*">
+                                    <DataGridTemplateColumn Header="{DynamicResource Host.ResolveDomain.Location}" Width="*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Location}" VerticalAlignment="Center"
@@ -93,7 +93,7 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     
-                                    <DataGridTemplateColumn MinWidth="70" Header="{DynamicResource Service.ResolveDomain.Proxy}">
+                                    <DataGridTemplateColumn MinWidth="70" Header="{DynamicResource Host.ResolveDomain.Proxy}">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -108,11 +108,11 @@
                             
                             <StackPanel Grid.Row="1" Grid.Column="0" Spacing="10" Orientation="Horizontal">
                                 <Button Classes="LinkLabel" Command="{Binding UpdateSelectionCommand}" CommandParameter="SelectAll">
-                                    <TextBlock Text="{DynamicResource Service.ResolveDomain.SelectAll}"
+                                    <TextBlock Text="{DynamicResource Host.ResolveDomain.SelectAll}"
                                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                 </Button>
                                 <Button Classes="LinkLabel" Command="{Binding UpdateSelectionCommand}" CommandParameter="InvertSelection">
-                                    <TextBlock Text="{DynamicResource Service.ResolveDomain.InvertSelection}"
+                                    <TextBlock Text="{DynamicResource Host.ResolveDomain.InvertSelection}"
                                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                 </Button>
                                 <RadioButton Content="IPv4" GroupName="Group1" IsChecked="{Binding !PreferIPv6}" />
@@ -123,15 +123,15 @@
                                     HorizontalAlignment="Center"
                                     HorizontalContentAlignment="Center"
                                     VerticalContentAlignment="Center"
-                                    Content="{DynamicResource Service.ResolveDomain.Resolve}"
+                                    Content="{DynamicResource Host.ResolveDomain.Resolve}"
                                     Command="{Binding QueryCommand}"/>
                             
                             <StackPanel Grid.Row="1" Grid.Column="2" Spacing="10" Orientation="Horizontal" HorizontalAlignment="Right">
                                 <Button Classes="LinkLabel" Command="{Binding UpdateSelectionCommand}" CommandParameter="ToggleProxy">
-                                    <TextBlock Text="{DynamicResource Service.ResolveDomain.InvertSelection}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                    <TextBlock Text="{DynamicResource Host.ResolveDomain.InvertSelection}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                 </Button>
                                 <Button Classes="LinkLabel" Command="{Binding UpdateSelectionCommand}" CommandParameter="EnableAllProxy">
-                                    <TextBlock Text="{DynamicResource Service.ResolveDomain.SelectAll}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                    <TextBlock Text="{DynamicResource Host.ResolveDomain.SelectAll}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                 </Button>
                             </StackPanel>
                             

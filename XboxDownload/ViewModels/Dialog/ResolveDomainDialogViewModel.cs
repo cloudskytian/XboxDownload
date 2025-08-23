@@ -63,8 +63,8 @@ public partial class ResolveDomainDialogViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(HostnameToResolve))
         {
             await DialogHelper.ShowInfoDialogAsync(
-                ResourceHelper.GetString("Service.ResolveDomain.InvalidDomainNameDialogTitle"), 
-                ResourceHelper.GetString("Service.ResolveDomain.InvalidDomainNameDialogMessage"),
+                ResourceHelper.GetString("Host.ResolveDomain.InvalidDomainNameDialogTitle"), 
+                ResourceHelper.GetString("Host.ResolveDomain.InvalidDomainNameDialogMessage"),
                 Icon.Error);
             RequestFocus?.Invoke("Host");
             return;
@@ -73,8 +73,8 @@ public partial class ResolveDomainDialogViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(ResolveIp))
         {
             await DialogHelper.ShowInfoDialogAsync(
-                ResourceHelper.GetString("Service.ResolveDomain.InvalidIpDialogTitle"), 
-                ResourceHelper.GetString("Service.ResolveDomain.InvalidIpDialogMessage"),
+                ResourceHelper.GetString("Host.ResolveDomain.InvalidIpDialogTitle"), 
+                ResourceHelper.GetString("Host.ResolveDomain.InvalidIpDialogMessage"),
                 Icon.Error);
             RequestFocus?.Invoke("Ip");
             return;
@@ -146,8 +146,8 @@ public partial class ResolveDomainDialogViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(HostnameToResolve))
         {
             await DialogHelper.ShowInfoDialogAsync(
-                ResourceHelper.GetString("Service.ResolveDomain.InvalidDomainNameDialogTitle"), 
-                ResourceHelper.GetString("Service.ResolveDomain.InvalidDomainNameDialogMessage"),
+                ResourceHelper.GetString("Host.ResolveDomain.InvalidDomainNameDialogTitle"), 
+                ResourceHelper.GetString("Host.ResolveDomain.InvalidDomainNameDialogMessage"),
                 Icon.Error);
             RequestFocus?.Invoke("Host");
             return;

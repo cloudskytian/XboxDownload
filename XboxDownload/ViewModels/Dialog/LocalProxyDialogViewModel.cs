@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using XboxDownload.Helpers.IO;
 using XboxDownload.Helpers.Utilities;
 using XboxDownload.Models.LocalProxy;
 using XboxDownload.Services;
@@ -200,6 +201,9 @@ public partial class LocalProxyDialogViewModel : ObservableObject
         if (lsSniProxy.Count >= 1)
         {
             File.WriteAllText(_serviceViewModel.SniProxyFilePath, JsonSerializer.Serialize(lsSniProxy, JsonHelper.Indented));
+            
+            if (!OperatingSystem.IsWindows())
+                _ = PathHelper.FixOwnershipAsync(_serviceViewModel.SniProxyFilePath);
         }
         else if (File.Exists(_serviceViewModel.SniProxyFilePath))
         {

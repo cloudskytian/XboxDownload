@@ -8,7 +8,7 @@
         x:DataType="dialog:ImportHostDialogViewModel"
         WindowStartupLocation="CenterOwner"
         Width="800" Height="450"
-        Title="{DynamicResource Service.ImportHost.Title}">
+        Title="{DynamicResource Host.ImportHost.Title}">
     
         <Grid ColumnDefinitions="*,200,*" RowDefinitions="*,Auto" RowSpacing="6">
             
@@ -18,7 +18,7 @@
                      HorizontalAlignment="Stretch" 
                      VerticalAlignment="Stretch"
                      Text="{Binding Content}" 
-                     Watermark="{DynamicResource Service.ImportHost.Watermark}"/>
+                     Watermark="{DynamicResource Host.ImportHost.Watermark}"/>
             
             <StackPanel Grid.Row="1" Grid.Column="0" Spacing="10" Orientation="Horizontal">
                     
@@ -28,12 +28,12 @@
                     HorizontalAlignment="Center"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
-                    Content="{DynamicResource Service.ImportHost.Confirm}"
+                    Content="{DynamicResource Host.ImportHost.Confirm}"
                     Command="{Binding ConfirmCommand}"/>
             
             <StackPanel Grid.Row="1" Grid.Column="2" Spacing="10" Orientation="Horizontal" HorizontalAlignment="Right" Margin="10,0,10,10">
                 <Button Classes="LinkLabel" Command="{Binding ReadFileCommand}">
-                    <TextBlock Text="{DynamicResource Service.ImportHost.LocalFile}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    <TextBlock Text="{DynamicResource Host.ImportHost.LocalFile}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                 </Button>
             </StackPanel>
                 

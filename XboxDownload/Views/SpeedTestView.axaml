@@ -300,7 +300,12 @@
                         <Button Classes="LinkLabel" Command="{Binding ClearHostsCommand}">
                             <TextBlock Text="{DynamicResource SpeedTest.ClearHosts}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                         </Button>
+                        <!--
                         <Button Classes="LinkLabel" Command="{Binding EditHostsCommand}">
+                            <TextBlock Text="{DynamicResource SpeedTest.EditHosts}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </Button>
+                        //-->
+                        <Button Classes="LinkLabel" Click="ShowEditHostsDialogAsync">
                             <TextBlock Text="{DynamicResource SpeedTest.EditHosts}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                         </Button>
                         <TextBlock VerticalAlignment="Center" Text="{DynamicResource SpeedTest.Timeout}"/>

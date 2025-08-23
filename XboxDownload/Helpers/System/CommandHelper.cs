@@ -61,7 +61,7 @@ public static class CommandHelper
             }
             else if (OperatingSystem.IsMacOS())
             {
-                _ = RunCommandAsync("/bin/bash", "-c \"sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder\"");
+                _ = RunCommandAsync("dscacheutil", "-flushcache");
             }
             else if (OperatingSystem.IsLinux())
             {

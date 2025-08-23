@@ -88,14 +88,14 @@ public partial class ImportHostDialogViewModel(HostViewModel hostViewModel) : Ob
 
         var options = new FilePickerOpenOptions
         {
-            Title = ResourceHelper.GetString("Service.ImportHost.SelectFile"),
+            Title = ResourceHelper.GetString("Host.ImportHost.SelectFile"),
             FileTypeFilter =
             [
-                new FilePickerFileType(ResourceHelper.GetString("Service.ImportHost.TxtFile"))
+                new FilePickerFileType(ResourceHelper.GetString("Host.ImportHost.TxtFile"))
                 {
                     Patterns = ["*.txt"]
                 },
-                new FilePickerFileType(ResourceHelper.GetString("Service.ImportHost.AllFile"))
+                new FilePickerFileType(ResourceHelper.GetString("Host.ImportHost.AllFile"))
                 {
                     Patterns = ["*"]
                 }
@@ -115,14 +115,14 @@ public partial class ImportHostDialogViewModel(HostViewModel hostViewModel) : Ob
                 }
                 else
                 {
-                    throw new Exception(ResourceHelper.GetString("Service.ImportHost.FileExceeded1MbLimit"));
+                    throw new Exception(ResourceHelper.GetString("Host.ImportHost.FileExceeded1MbLimit"));
                 }
             }
             catch (Exception ex)
             {
                 await DialogHelper.ShowInfoDialogAsync(
-                    ResourceHelper.GetString("Service.ImportHost.FileReadingFailedDialogTitle"), 
-                    string.Format(ResourceHelper.GetString("Service.ImportHost.FileReadingFailedDialogMessage"), ex.Message),
+                    ResourceHelper.GetString("Host.ImportHost.FileReadingFailedDialogTitle"), 
+                    string.Format(ResourceHelper.GetString("Host.ImportHost.FileReadingFailedDialogMessage"), ex.Message),
                     Icon.Error);
             }
         }

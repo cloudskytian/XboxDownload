@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MsBox.Avalonia.Enums;
+using XboxDownload.Helpers.IO;
 using XboxDownload.Helpers.Network;
 using XboxDownload.Helpers.Resources;
 using XboxDownload.Helpers.UI;
@@ -306,6 +307,9 @@ public partial class DohServerDialogViewModel : ObservableObject
         {
             var json = JsonSerializer.Serialize(entriesToSave);
             await File.WriteAllTextAsync(jsonPath, json);
+            
+            if (!OperatingSystem.IsWindows())
+                _ = PathHelper.FixOwnershipAsync(jsonPath);
         }
         catch
         {

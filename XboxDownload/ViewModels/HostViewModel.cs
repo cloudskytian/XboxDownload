@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MsBox.Avalonia.Enums;
+using XboxDownload.Helpers.IO;
 using XboxDownload.Helpers.Resources;
 using XboxDownload.Helpers.System;
 using XboxDownload.Helpers.UI;
@@ -111,11 +112,11 @@ public partial class HostViewModel : ObservableObject
         if (invalidEntries.Count > 0)
         {
             var message = string.Format(
-                ResourceHelper.GetString("Service.Host.InvalidIpDialogMessage"),
+                ResourceHelper.GetString("Host.InvalidIpDialogMessage"),
                 string.Join("\n", invalidEntries)
             );
             await DialogHelper.ShowInfoDialogAsync(
-                ResourceHelper.GetString("Service.Host.InvalidIpDialogTitle"),
+                ResourceHelper.GetString("Host.InvalidIpDialogTitle"),
                 message,
                 Icon.Error);
             return;
@@ -143,7 +144,10 @@ public partial class HostViewModel : ObservableObject
         try
         {
             var json = JsonSerializer.Serialize(HostMappings);
-            await File.WriteAllTextAsync(jsonPath, json, System.Text.Encoding.UTF8);
+            await File.WriteAllTextAsync(jsonPath, json);
+            
+            if (!OperatingSystem.IsWindows())
+                _ = PathHelper.FixOwnershipAsync(jsonPath);
         }
         catch
         {

@@ -372,6 +372,7 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
     
     public async Task<string> StartAsync()
     {
+        _serviceName = null;
         NetworkInterfaceDnsMap.Clear();
         var isSimplifiedChinese = App.Settings.Culture == "zh-Hans";
         
@@ -380,7 +381,7 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
         {
             if (serviceViewModel.SelectedAdapter?.Adapter != null)
             {
-                if (OperatingSystem.IsWindows())
+                if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
                 {
                     var adapterProperties = serviceViewModel.SelectedAdapter.Adapter.GetIPProperties();
                     foreach (var dns in adapterProperties.DnsAddresses)
@@ -423,7 +424,7 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
             serviceViewModel.IsListeningFailed = true;
             return string.Format(ResourceHelper.GetString("Service.Listening.DnsStartFailedDialogMessage"), ex.Message);
         }
-        
+
         var localIp = IPAddress.Parse(App.Settings.LocalIp).GetAddressBytes();
         _localIpRecords = [new ResourceRecord { Data = localIp, TTL = 100, QueryClass = 1, QueryType = QueryType.A }];
         
@@ -504,6 +505,33 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
                     NetworkInterfaceDnsMap.TryAdd(adapter.Id, dns);
                 }
                 await ApplyDns(App.Settings.LocalIp);
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                var serviceName = await GetNetworkServiceNameAsync(serviceViewModel.SelectedAdapter!.Adapter.Name);
+                if (!string.IsNullOrEmpty(serviceName))
+                {
+                    var ips = new List<IPAddress>();
+                    var dnsServers =
+                        await CommandHelper.RunCommandWithOutputAsync("networksetup",
+                            $"-getdnsservers \"{serviceName}\"");
+                    foreach (var line in dnsServers)
+                    {
+                        if (IPAddress.TryParse(line, out var ip) && ip.ToString() != App.Settings.LocalIp)
+                            ips.Add(ip);
+                    }
+
+                    if (ips.Count > 0)
+                    {
+                        var dns = new DnsServer
+                        {
+                            IPv4 = string.Join(" ", ips)
+                        };
+                        NetworkInterfaceDnsMap.TryAdd(serviceName, dns);
+                    }
+                    
+                    await CommandHelper.RunCommandAsync("networksetup", $"-setdnsservers \"{serviceName}\" {App.Settings.LocalIp}");
+                }
             }
             else if (OperatingSystem.IsLinux())
             {
@@ -728,10 +756,54 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
                 Console.WriteLine($"Failed to access registry: {ex}");
             }
         }
+        else if (OperatingSystem.IsMacOS())
+        {
+            if (!string.IsNullOrEmpty(_serviceName))
+            {
+                if (NetworkInterfaceDnsMap.TryGetValue(_serviceName, out var doHServer))
+                {
+                    await CommandHelper.RunCommandAsync("networksetup", $"-setdnsservers \"{_serviceName}\" {doHServer.IPv4}");
+                }
+                else
+                {
+                    await CommandHelper.RunCommandAsync("networksetup", $"-setdnsservers \"{_serviceName}\" \"Empty\"");
+                }
+            }
+        }
         else if (OperatingSystem.IsLinux())
         {
             await CommandHelper.RunCommandAsync("systemctl", "restart systemd-resolved");
         }
+    }
+    
+    //var serviceName = await GetNetworkServiceNameAsync(serviceViewModel.SelectedAdapter!.Adapter.Name);
+    private static string? _serviceName;
+    private static async Task<string?> GetNetworkServiceNameAsync(string device)
+    {
+        if (!string.IsNullOrEmpty(_serviceName)) return _serviceName;
+        
+        var result = await CommandHelper.RunCommandWithOutputAsync("networksetup", "-listnetworkserviceorder");
+        var currentService = string.Empty;
+
+        foreach (var line in result)
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            
+            if (line.StartsWith('('))
+            {
+                var idx = line.IndexOf(')');
+                if (idx > 0 && idx + 1 < line.Length)
+                {
+                    currentService = line[(idx + 1)..].Trim();
+                }
+            }
+            
+            if (string.IsNullOrEmpty(currentService) || !line.Contains($"Device: {device}")) continue;
+            _serviceName = currentService;
+            break;
+        }
+        
+        return _serviceName;
     }
     
     private static async Task<(byte[]? ipBytes, string? resolved)> ResolveIpAsync(string? cachedIp, string host, string dnsIp, bool isDoHEnabled)
