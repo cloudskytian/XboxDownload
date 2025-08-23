@@ -24,16 +24,8 @@ using XboxDownload.Helpers.Utilities;
 
 namespace XboxDownload.Services;
 
-public partial class TcpConnectionListener
+public partial class TcpConnectionListener(ServiceViewModel serviceViewModel)
 {
-    private readonly ServiceViewModel _serviceViewModel;
-    
-    public TcpConnectionListener(ServiceViewModel serviceViewModel)
-    {
-        _serviceViewModel = serviceViewModel;
-        GenerateServerCertificate();
-    }
-    
     private static X509Certificate2? _certificate;
     private static Socket? _httpSocket;
     private static Socket? _httpsSocket;
@@ -58,9 +50,15 @@ public partial class TcpConnectionListener
     private static readonly string RootPfx = PathHelper.GetLocalFilePath($"{nameof(XboxDownload)}.pfx");
     private static readonly string RootCrt = PathHelper.GetLocalFilePath($"{nameof(XboxDownload)}.crt");
 
-    private void CreateRootCertificate()
+    private static async Task CreateRootCertificate()
     {
-        //if (File.Exists(RootPfx)) return; // Root CA already exists
+        if (File.Exists(RootPfx)) return; // Root CA already exists
+
+        if (!OperatingSystem.IsWindows())
+        {
+            var user = Environment.GetEnvironmentVariable("SUDO_USER") ?? Environment.UserName;
+            if (user != "root") return;
+        }
 
         using var rsa = RSA.Create(4096);
         var caReq = new CertificateRequest($"CN={nameof(XboxDownload)}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -74,10 +72,15 @@ public partial class TcpConnectionListener
         var caCert = caReq.CreateSelfSigned(utcNow, utcNow.AddYears(10));
 
         // Export Root PFX (contains private key, only for development)
-        File.WriteAllBytes(RootPfx, caCert.Export(X509ContentType.Pfx));
-
+        await File.WriteAllBytesAsync(RootPfx, caCert.Export(X509ContentType.Pfx));
         // Export Root CRT (public key only, can be distributed to other devices)
-        File.WriteAllBytes(RootCrt, caCert.Export(X509ContentType.Cert));
+        await File.WriteAllBytesAsync(RootCrt, caCert.Export(X509ContentType.Cert));
+        
+        if (!OperatingSystem.IsWindows())
+        {
+            await PathHelper.FixOwnershipAsync(RootPfx);
+            await PathHelper.FixOwnershipAsync(RootCrt);
+        }
 
         if (OperatingSystem.IsWindows())
         {
@@ -93,36 +96,51 @@ public partial class TcpConnectionListener
         else if (OperatingSystem.IsMacOS())
         {
             try
-            {
-                CommandHelper.RunCommandAsync("security", $"delete-certificate -c \"{nameof(XboxDownload)}\" /Library/Keychains/System.keychain").Wait();
+            { 
+                await CommandHelper.RunCommandAsync("security", $"delete-certificate -c \"{nameof(XboxDownload)}\" /Library/Keychains/System.keychain");
             }
             catch
             {
                 // ignored
             }
 
-            CommandHelper.RunCommandAsync("security", $"add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain \"{RootCrt}\"").Wait();
+            await CommandHelper.RunCommandAsync("security", $"add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain \"{RootCrt}\"");
         }
         else if (OperatingSystem.IsLinux())
         {
+            // Export PEM from X509Certificate2
+            var raw = await File.ReadAllBytesAsync(RootCrt);
+            var pem = "-----BEGIN CERTIFICATE-----\n"
+                      + Convert.ToBase64String(raw, Base64FormattingOptions.InsertLineBreaks)
+                      + "\n-----END CERTIFICATE-----\n";
+            
             var certPath = $"/usr/local/share/ca-certificates/{nameof(XboxDownload)}.crt";
+            try
+            {
+                if (File.Exists(certPath))
+                    File.Delete(certPath);
 
-            if (File.Exists(certPath))
-                File.Delete(certPath);
-
-            File.Copy(RootCrt, certPath);
-
-            CommandHelper.RunCommandAsync("update-ca-certificates", "").Wait();
+                //File.Copy(RootCrt, certPath);
+                await File.WriteAllTextAsync(certPath, pem);
+                
+                await CommandHelper.RunCommandAsync("update-ca-certificates", "");
+            }
+            catch
+            {
+                // ignored
+            }
         }
     }
 
-    public void GenerateServerCertificate()
+    private async Task GenerateServerCertificate()
     {
         DicSniProxy.Clear();
         DicSniProxy2.Clear();
 
         // Ensure Root CA is created
-        CreateRootCertificate();
+        await CreateRootCertificate();
+        
+        if (!File.Exists(RootPfx)) return;
 
         using var serverRsa = RSA.Create(2048);
         var serverReq = new CertificateRequest($"CN={nameof(XboxDownload)}", serverRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -137,12 +155,12 @@ public partial class TcpConnectionListener
         sanBuilder.AddDnsName("download.epicgames.com");
 
         // Load SNI proxy file if exists
-        if (File.Exists(_serviceViewModel.SniProxyFilePath))
+        if (File.Exists(serviceViewModel.SniProxyFilePath))
         {
             List<List<object>>? sniProxy = null;
             try
             {
-                sniProxy = JsonSerializer.Deserialize<List<List<object>>>(File.ReadAllText(_serviceViewModel.SniProxyFilePath));
+                sniProxy = JsonSerializer.Deserialize<List<List<object>>>(File.ReadAllText(serviceViewModel.SniProxyFilePath));
             }
             catch
             {
@@ -255,7 +273,7 @@ public partial class TcpConnectionListener
         _certificate = new X509Certificate2(pfxBytes!, "", X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
     }
     
-    public string Start()
+    public async Task<string> StartAsync()
     {
         var ipAddress = App.Settings.ListeningIp == "LocalIp"
             ? IPAddress.Parse(App.Settings.LocalIp)
@@ -276,9 +294,11 @@ public partial class TcpConnectionListener
         }
         catch (SocketException ex)
         {
-            _serviceViewModel.IsListeningFailed = true;
+            serviceViewModel.IsListeningFailed = true;
             return string.Format(ResourceHelper.GetString("Service.Listening.TcpStartFailedDialogMessage"), ex.Message);
         }
+        
+        await GenerateServerCertificate();
 
         _isSimplifiedChinese = App.Settings.Culture == "zh-Hans";
 
@@ -306,42 +326,17 @@ public partial class TcpConnectionListener
         _httpsSocket?.Dispose();
         _httpSocket = null;
         _httpsSocket = null;
-        
-        /*
-        if (OperatingSystem.IsWindows())
-        {
-            using X509Store store = new(StoreName.Root, StoreLocation.LocalMachine);
-            store.Open(OpenFlags.ReadWrite);
-            var certificates=
-                store.Certificates.Find(X509FindType.FindBySubjectDistinguishedName, $"CN={nameof(XboxDownload)}", false);
-            if (certificates.Count > 0) store.RemoveRange(certificates);
-            store.Close();
-        }
-        else if (OperatingSystem.IsMacOS())
-        {
-            _ = CommandHelper.RunCommandAsync("security",
-                $"delete-certificate -c \"{nameof(XboxDownload)}\" /Library/Keychains/System.keychain");
-        }
-        else if (OperatingSystem.IsLinux())
-        {
-            var certPath = $"/usr/local/share/ca-certificates/{nameof(XboxDownload)}.crt";
-            if (File.Exists(certPath)) 
-                File.Delete(certPath);
-
-            _ = CommandHelper.RunCommandAsync("update-ca-certificates", "");
-        }
-        */
     }
     
     private async Task Listening(Socket? socket, bool isHttps)
     {
-        while (_serviceViewModel.IsListening)
+        while (serviceViewModel.IsListening)
         {
             if (socket == null) break;
 
             try
             {
-                var clientSocket = await socket.AcceptAsync(_serviceViewModel.ListeningToken);
+                var clientSocket = await socket.AcceptAsync(serviceViewModel.ListeningToken);
                 _ = isHttps ? Task.Run(() => HttpsThread(clientSocket)) : Task.Run(() => HttpThread(clientSocket));
             }
             catch
@@ -359,7 +354,7 @@ public partial class TcpConnectionListener
             socket.ReceiveTimeout = 30000;
             try
             {
-                while (_serviceViewModel.IsListening && socket.Connected)
+                while (serviceViewModel.IsListening && socket.Connected)
                 {
                     var receive = new byte[4096];
                     var num = socket.Receive(receive, 0, receive.Length, SocketFlags.None, out _);
@@ -377,10 +372,10 @@ public partial class TcpConnectionListener
                     var host = result.Groups[1].Value.Trim().ToLower();
                     
                     string tmpPath = QueryStringRegex().Replace(filePath, ""), localPath = string.Empty;
-                    if (_serviceViewModel.IsLocalUploadEnabled)
+                    if (serviceViewModel.IsLocalUploadEnabled)
                     {
-                        var tmpPath1 = _serviceViewModel.LocalUploadPath + tmpPath;
-                        var tmpPath2 = Path.Combine(_serviceViewModel.LocalUploadPath, Path.GetFileName(tmpPath));
+                        var tmpPath1 = serviceViewModel.LocalUploadPath + tmpPath;
+                        var tmpPath2 = Path.Combine(serviceViewModel.LocalUploadPath, Path.GetFileName(tmpPath));
                         if (File.Exists(tmpPath1))
                         {
                             if (OperatingSystem.IsWindows()) tmpPath1 = tmpPath1.Replace("/", "\\");
@@ -390,7 +385,7 @@ public partial class TcpConnectionListener
                             localPath = tmpPath2;
                     }
 
-                    if (_serviceViewModel.IsLocalUploadEnabled && !string.IsNullOrEmpty(localPath))
+                    if (serviceViewModel.IsLocalUploadEnabled && !string.IsNullOrEmpty(localPath))
                     {
                          FileStream? fs = null;
                          try
@@ -399,13 +394,13 @@ public partial class TcpConnectionListener
                          }
                          catch (Exception ex)
                          {
-                             if (_serviceViewModel.IsLogging)
-                                 _serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), ex.Message, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                             if (serviceViewModel.IsLogging)
+                                 serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), ex.Message, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                          }
                          if (fs != null)
                          {
-                             if (_serviceViewModel.IsLogging)
-                                 _serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), localPath, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                             if (serviceViewModel.IsLogging)
+                                 serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), localPath, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                              using var br = new BinaryReader(fs);
                              string contentRange = string.Empty, status = "200 OK";
                              long fileLength = br.BaseStream.Length, startPosition = 0;
@@ -433,7 +428,7 @@ public partial class TcpConnectionListener
 
                              br.BaseStream.Position = startPosition;
                              const int size = 4096;
-                             while (_serviceViewModel.IsListening && socket.Connected)
+                             while (serviceViewModel.IsListening && socket.Connected)
                              {
                                  var remaining = endPosition - br.BaseStream.Position;
                                  var response = new byte[remaining <= size ? remaining : size];
@@ -554,8 +549,8 @@ public partial class TcpConnectionListener
                             sb.Append("Content-Length: 0\r\n\r\n");
                             var headersBytes = Encoding.ASCII.GetBytes(sb.ToString());
                             socket.Send(headersBytes, 0, headersBytes.Length, SocketFlags.None, out _);
-                            if (_serviceViewModel.IsLogging)
-                                _serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                            if (serviceViewModel.IsLogging)
+                                serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                         }
                         else
                         {
@@ -575,8 +570,8 @@ public partial class TcpConnectionListener
                                         var headersBytes = Encoding.ASCII.GetBytes(sb.ToString());
                                         socket.Send(headersBytes, 0, headersBytes.Length, SocketFlags.None, out _);
                                         socket.Send(response, 0, response.Length, SocketFlags.None, out _);
-                                        if (_serviceViewModel.IsLogging)
-                                            _serviceViewModel.AddLog("HTTP 200", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                        if (serviceViewModel.IsLogging)
+                                            serviceViewModel.AddLog("HTTP 200", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                     }
                                     break;
                                 case "epicgames-download1-1251447533.file.myqcloud.com":
@@ -588,7 +583,7 @@ public partial class TcpConnectionListener
                                     {
                                         var ipAddresses = App.Settings.IsDoHEnabled
                                             ? await DnsHelper.ResolveDohAsync(host, DnsHelper.CurrentDoH)
-                                            : await DnsHelper.ResolveDnsAsync(host, _serviceViewModel.DnsIp);
+                                            : await DnsHelper.ResolveDnsAsync(host, serviceViewModel.DnsIp);
                                         if (ipAddresses?.Count > 0)
                                         {
                                             var httpHeaders = new Dictionary<string, string>() { { "Host", host } };
@@ -600,8 +595,8 @@ public partial class TcpConnectionListener
                                                 var responseData = await response.Content.ReadAsByteArrayAsync();
                                                 socket.Send(headersBytes, 0, headersBytes.Length, SocketFlags.None, out _);
                                                 socket.Send(responseData, 0, responseData.Length, SocketFlags.None, out _);
-                                                if (_serviceViewModel.IsLogging)
-                                                    _serviceViewModel.AddLog("HTTP 200", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                                if (serviceViewModel.IsLogging)
+                                                    serviceViewModel.AddLog("HTTP 200", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                             }
                                         }
                                     }
@@ -616,8 +611,8 @@ public partial class TcpConnectionListener
                                         sb.Append("Content-Length: 0\r\n\r\n");
                                         var headersBytes = Encoding.ASCII.GetBytes(sb.ToString());
                                         socket.Send(headersBytes, 0, headersBytes.Length, SocketFlags.None, out _);
-                                        if (_serviceViewModel.IsLogging)
-                                            _serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                        if (serviceViewModel.IsLogging)
+                                            serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                     }
                                     break;
                                 case "blzddist1-a.akamaihd.net":
@@ -682,8 +677,8 @@ public partial class TcpConnectionListener
                                         sb.Append("Content-Length: 0\r\n\r\n");
                                         var headersBytes = Encoding.ASCII.GetBytes(sb.ToString());
                                         socket.Send(headersBytes, 0, headersBytes.Length, SocketFlags.None, out _);
-                                        if (_serviceViewModel.IsLogging)
-                                            _serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                        if (serviceViewModel.IsLogging)
+                                            serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                     }
                                     break;
                             }
@@ -697,8 +692,8 @@ public partial class TcpConnectionListener
                                 var headersBytes = Encoding.ASCII.GetBytes(sb.ToString());
                                 socket.Send(headersBytes, 0, headersBytes.Length, SocketFlags.None, out _);
                                 socket.Send(response, 0, response.Length, SocketFlags.None, out _);
-                                if (_serviceViewModel.IsLogging)
-                                    _serviceViewModel.AddLog("HTTP 404", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                if (serviceViewModel.IsLogging)
+                                    serviceViewModel.AddLog("HTTP 404", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                             }
                         }
                     }
@@ -749,7 +744,7 @@ public partial class TcpConnectionListener
         const string tagHost = "assets2.xboxlive.cn";
         var ipAddresses = App.Settings.IsDoHEnabled
             ? await DnsHelper.ResolveDohAsync(tagHost, DnsHelper.CurrentDoH)
-            : await DnsHelper.ResolveDnsAsync(tagHost, _serviceViewModel.DnsIp);
+            : await DnsHelper.ResolveDnsAsync(tagHost, serviceViewModel.DnsIp);
         
         if (ipAddresses?.Count > 0)
         {
@@ -787,7 +782,7 @@ public partial class TcpConnectionListener
                 await ssl.AuthenticateAsServerAsync(_certificate!, false, SslProtocols.Tls13 | SslProtocols.Tls12, false);
                 if (ssl.IsAuthenticated)
                 {
-                    while (_serviceViewModel.IsListening && socket.Connected)
+                    while (serviceViewModel.IsListening && socket.Connected)
                     {
                         var receive = new byte[4096];
                         var num = ssl.Read(receive, 0, receive.Length);
@@ -826,10 +821,10 @@ public partial class TcpConnectionListener
                         var host = result.Groups[1].Value.Trim().ToLower();
                         
                         string tmpPath = QueryStringRegex().Replace(filePath, ""), localPath = string.Empty;
-                        if (_serviceViewModel.IsLocalUploadEnabled)
+                        if (serviceViewModel.IsLocalUploadEnabled)
                         {
-                            var tmpPath1 = _serviceViewModel.LocalUploadPath + tmpPath;
-                            var tmpPath2 = Path.Combine(_serviceViewModel.LocalUploadPath, Path.GetFileName(tmpPath));
+                            var tmpPath1 = serviceViewModel.LocalUploadPath + tmpPath;
+                            var tmpPath2 = Path.Combine(serviceViewModel.LocalUploadPath, Path.GetFileName(tmpPath));
                             if (File.Exists(tmpPath1))
                             {
                                 if (OperatingSystem.IsWindows()) tmpPath1 = tmpPath1.Replace("/", "\\");
@@ -839,7 +834,7 @@ public partial class TcpConnectionListener
                                 localPath = tmpPath2;
                         }
                         
-                        if (_serviceViewModel.IsLocalUploadEnabled && !string.IsNullOrEmpty(localPath))
+                        if (serviceViewModel.IsLocalUploadEnabled && !string.IsNullOrEmpty(localPath))
                         {
                             FileStream? fs = null;
                             try
@@ -848,13 +843,13 @@ public partial class TcpConnectionListener
                             }
                             catch (Exception ex)
                             {
-                                if (_serviceViewModel.IsLogging)
-                                    _serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), ex.Message, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                if (serviceViewModel.IsLogging)
+                                    serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), ex.Message, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                             }
                             if (fs != null)
                             {
-                                if (_serviceViewModel.IsLogging)
-                                    _serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), localPath, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                if (serviceViewModel.IsLogging)
+                                    serviceViewModel.AddLog(ResourceHelper.GetString("Service.Listening.LocalUpload"), localPath, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                 using var br = new BinaryReader(fs);
                                 string contentRange = string.Empty, status = "200 OK";
                                 long fileLength = br.BaseStream.Length, startPosition = 0;
@@ -882,7 +877,7 @@ public partial class TcpConnectionListener
 
                                 br.BaseStream.Position = startPosition;
                                 const int size = 4096;
-                                while (_serviceViewModel.IsListening && socket.Connected)
+                                while (serviceViewModel.IsListening && socket.Connected)
                                 {
                                     var remaining = endPosition - br.BaseStream.Position;
                                     var response = new byte[remaining <= size ? remaining : size];
@@ -916,7 +911,7 @@ public partial class TcpConnectionListener
                                 {
                                     var ipAddresses = App.Settings.IsDoHEnabled
                                         ? await DnsHelper.ResolveDohAsync(host, DnsHelper.CurrentDoH)
-                                        : await DnsHelper.ResolveDnsAsync(host, _serviceViewModel.DnsIp);
+                                        : await DnsHelper.ResolveDnsAsync(host, serviceViewModel.DnsIp);
                                     if (ipAddresses?.Count > 0)
                                     {
                                         fileFound = true;
@@ -944,8 +939,8 @@ public partial class TcpConnectionListener
                                             sb.Append("Content-Length: 0\r\n\r\n");
                                             ssl.Write(Encoding.ASCII.GetBytes(sb.ToString()));
                                             ssl.Flush();
-                                            if (_serviceViewModel.IsLogging)
-                                                _serviceViewModel.AddLog("HTTP 500", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                            if (serviceViewModel.IsLogging)
+                                                serviceViewModel.AddLog("HTTP 500", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                         }
                                     }
                                     break;
@@ -959,7 +954,7 @@ public partial class TcpConnectionListener
                                     {
                                         var ipAddresses = App.Settings.IsDoHEnabled
                                             ? await DnsHelper.ResolveDohAsync(host, DnsHelper.CurrentDoH)
-                                            : await DnsHelper.ResolveDnsAsync(host, _serviceViewModel.DnsIp);
+                                            : await DnsHelper.ResolveDnsAsync(host, serviceViewModel.DnsIp);
                                         if (ipAddresses?.Count > 0)
                                         {
                                             var httpHeaders = new Dictionary<string, string>() { { "Host", host } };
@@ -972,8 +967,8 @@ public partial class TcpConnectionListener
                                                 ssl.Write(headersBytes);
                                                 ssl.Write(responseData);
                                                 ssl.Flush();
-                                                if (_serviceViewModel.IsLogging)
-                                                    _serviceViewModel.AddLog("HTTP 200", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                                if (serviceViewModel.IsLogging)
+                                                    serviceViewModel.AddLog("HTTP 200", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                             }
                                         }
                                     }
@@ -988,8 +983,8 @@ public partial class TcpConnectionListener
                                         sb.Append("Content-Length: 0\r\n\r\n");
                                         var headersBytes = Encoding.ASCII.GetBytes(sb.ToString());
                                         ssl.Write(headersBytes);
-                                        if (_serviceViewModel.IsLogging)
-                                            _serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                        if (serviceViewModel.IsLogging)
+                                            serviceViewModel.AddLog("HTTP 302", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                     }
                                     break;
                                 
@@ -1034,15 +1029,15 @@ public partial class TcpConnectionListener
                                             
                                             if (proxy != null)
                                             {
-                                                if (_serviceViewModel.IsLogging) 
-                                                    _serviceViewModel.AddLog("Proxy", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                                if (serviceViewModel.IsLogging) 
+                                                    serviceViewModel.AddLog("Proxy", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                                                 
                                                 fileFound = true;
                                                 IPAddress[]? ips = null;
                                                 if (proxy is { UseCustomIpAddress: true, IpAddresses: null })
                                                 {
                                                     IPAddress[]? ipV6 = proxy.IpAddressesV6, ipV4 = proxy.IpAddressesV4;
-                                                    proxy.IpAddresses = _serviceViewModel.IsIPv6Support switch
+                                                    proxy.IpAddresses = serviceViewModel.IsIPv6Support switch
                                                     {
                                                         true when ipV6 != null && ipV4 != null => ipV6.Concat(ipV4)
                                                             .ToArray(),
@@ -1073,11 +1068,11 @@ public partial class TcpConnectionListener
                                                         var tasks = new List<Task>();
                                                         foreach (var sniProxyId in App.Settings.SniProxyId)
                                                         {
-                                                            var selectedDohServer = _serviceViewModel.DohServersMappings.FirstOrDefault(d => d.Id == sniProxyId); 
+                                                            var selectedDohServer = serviceViewModel.DohServersMappings.FirstOrDefault(d => d.Id == sniProxyId); 
                                                             if (selectedDohServer == null) continue;
                                                             var useProxy = App.Settings.DohServerUseProxyId.Contains(selectedDohServer.Id) && !selectedDohServer.IsProxyDisabled;
                                                             var doHServer = DnsHelper.GetConfigureDoH(selectedDohServer.Url, selectedDohServer.Ip, useProxy);
-                                                            if (_serviceViewModel.IsIPv6Support)
+                                                            if (serviceViewModel.IsIPv6Support)
                                                             {
                                                                 tasks.Add(Task.Run(async () =>
                                                                 {
@@ -1143,8 +1138,8 @@ public partial class TcpConnectionListener
                                 ssl.Write(headersBytes);
                                 ssl.Write(response);
                                 ssl.Flush();
-                                if (_serviceViewModel.IsLogging)
-                                    _serviceViewModel.AddLog("HTTP 404", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
+                                if (serviceViewModel.IsLogging)
+                                    serviceViewModel.AddLog("HTTP 404", url, ((IPEndPoint)socket.RemoteEndPoint!).Address.ToString());
                             }
                         }
                     }

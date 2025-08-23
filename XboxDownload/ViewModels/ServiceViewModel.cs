@@ -444,9 +444,9 @@ public partial class ServiceViewModel : ObservableObject
             }
             if (IsHttpServiceEnabled)
             {
-                tasks.Add(Task.Run(() =>
+                tasks.Add(Task.Run(async () =>
                 {
-                    errTcpMessage = TcpConnectionListener.Start();
+                    errTcpMessage = await TcpConnectionListener.StartAsync();
                 }, ListeningToken));
             }
             await Task.WhenAll(tasks);

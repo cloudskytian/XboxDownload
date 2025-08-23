@@ -23,6 +23,16 @@ public static class PathHelper
                 var home = $"/Users/{user}";
                 _localFolder = Path.Combine(home, "Library", "Application Support", nameof(XboxDownload));
             }
+            else if (OperatingSystem.IsLinux())
+            {
+                var user = Environment.GetEnvironmentVariable("SUDO_USER") ?? Environment.UserName;
+                var home = $"/home/{user}";
+
+                var xdgData = Environment.GetEnvironmentVariable("XDG_DATA_HOME") 
+                              ?? Path.Combine(home, ".local", "share");
+                
+                _localFolder = Path.Combine(xdgData, nameof(XboxDownload));
+            }
             else
             {
                 _localFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), nameof(XboxDownload));

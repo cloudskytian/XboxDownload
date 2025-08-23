@@ -216,8 +216,6 @@ public partial class LocalProxyDialogViewModel : ObservableObject
         App.Settings.SniProxyId = selectedDohIds;
         SettingsManager.Save(App.Settings);
 
-        _serviceViewModel.TcpConnectionListener.GenerateServerCertificate();
-
         CloseDialog?.Invoke();
     }
     
