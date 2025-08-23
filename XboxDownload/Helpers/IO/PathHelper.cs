@@ -27,7 +27,6 @@ public static class PathHelper
             {
                 _localFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), nameof(XboxDownload));
             }
-            Console.WriteLine(_localFolder);
 
             if (!Directory.Exists(_localFolder))
             {

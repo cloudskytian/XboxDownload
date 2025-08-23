@@ -776,7 +776,6 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
         }
     }
     
-    //var serviceName = await GetNetworkServiceNameAsync(serviceViewModel.SelectedAdapter!.Adapter.Name);
     private static string? _serviceName;
     private static async Task<string?> GetNetworkServiceNameAsync(string device)
     {

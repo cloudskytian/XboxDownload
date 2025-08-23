@@ -16,6 +16,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
 using System.Web;
+using XboxDownload.Helpers.IO;
 using XboxDownload.Helpers.Network;
 using XboxDownload.Helpers.Resources;
 using XboxDownload.Helpers.System;
@@ -30,7 +31,7 @@ public partial class TcpConnectionListener
     public TcpConnectionListener(ServiceViewModel serviceViewModel)
     {
         _serviceViewModel = serviceViewModel;
-        CreateCertificate();
+        GenerateServerCertificate();
     }
     
     private static X509Certificate2? _certificate;
@@ -53,14 +54,80 @@ public partial class TcpConnectionListener
         public bool UseCustomIpAddress { get; init; }
         public readonly SemaphoreSlim Semaphore = new(1, 1);
     }
+    
+    private static readonly string RootPfx = PathHelper.GetLocalFilePath($"{nameof(XboxDownload)}.pfx");
+    private static readonly string RootCrt = PathHelper.GetLocalFilePath($"{nameof(XboxDownload)}.crt");
 
-    public void CreateCertificate()
+    private void CreateRootCertificate()
+    {
+        //if (File.Exists(RootPfx)) return; // Root CA already exists
+
+        using var rsa = RSA.Create(4096);
+        var caReq = new CertificateRequest($"CN={nameof(XboxDownload)}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+        // Basic CA extensions
+        caReq.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
+        caReq.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign, true));
+        caReq.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(caReq.PublicKey, false));
+
+        var utcNow = DateTimeOffset.UtcNow;
+        var caCert = caReq.CreateSelfSigned(utcNow, utcNow.AddYears(10));
+
+        // Export Root PFX (contains private key, only for development)
+        File.WriteAllBytes(RootPfx, caCert.Export(X509ContentType.Pfx));
+
+        // Export Root CRT (public key only, can be distributed to other devices)
+        File.WriteAllBytes(RootCrt, caCert.Export(X509ContentType.Cert));
+
+        if (OperatingSystem.IsWindows())
+        {
+            using var cert = new X509Certificate2(RootCrt);
+            using var store = new X509Store(StoreName.Root, StoreLocation.LocalMachine);
+            store.Open(OpenFlags.ReadWrite);
+
+            var certificates = store.Certificates.Find(X509FindType.FindBySubjectName, nameof(XboxDownload), false);
+            if (certificates.Count > 0) store.RemoveRange(certificates);
+
+            store.Add(cert);
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            try
+            {
+                CommandHelper.RunCommandAsync("security", $"delete-certificate -c \"{nameof(XboxDownload)}\" /Library/Keychains/System.keychain").Wait();
+            }
+            catch
+            {
+                // ignored
+            }
+
+            CommandHelper.RunCommandAsync("security", $"add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain \"{RootCrt}\"").Wait();
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            var certPath = $"/usr/local/share/ca-certificates/{nameof(XboxDownload)}.crt";
+
+            if (File.Exists(certPath))
+                File.Delete(certPath);
+
+            File.Copy(RootCrt, certPath);
+
+            CommandHelper.RunCommandAsync("update-ca-certificates", "").Wait();
+        }
+    }
+
+    public void GenerateServerCertificate()
     {
         DicSniProxy.Clear();
         DicSniProxy2.Clear();
-        
-        using var rsa = RSA.Create(2048);
-        var req = new CertificateRequest($"CN={nameof(XboxDownload)}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+        // Ensure Root CA is created
+        CreateRootCertificate();
+
+        using var serverRsa = RSA.Create(2048);
+        var serverReq = new CertificateRequest($"CN={nameof(XboxDownload)}", serverRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+        // Subject Alternative Names (SAN)
         var sanBuilder = new SubjectAlternativeNameBuilder();
         sanBuilder.AddDnsName("packagespc.xboxlive.com");
         sanBuilder.AddDnsName("*.akamai.net");
@@ -68,7 +135,8 @@ public partial class TcpConnectionListener
         sanBuilder.AddDnsName("*.akamaized.net");
         sanBuilder.AddDnsName("epicgames-download1-1251447533.file.myqcloud.com");
         sanBuilder.AddDnsName("download.epicgames.com");
-        
+
+        // Load SNI proxy file if exists
         if (File.Exists(_serviceViewModel.SniProxyFilePath))
         {
             List<List<object>>? sniProxy = null;
@@ -86,10 +154,10 @@ public partial class TcpConnectionListener
                 foreach (var item in sniProxy)
                 {
                     if (item.Count != 3) continue;
-                    
+
                     var jeHosts = (JsonElement)item[0];
                     if (jeHosts.ValueKind != JsonValueKind.Array) continue;
-                    
+
                     var sni = item[1].ToString();
                     var ips = item[2].ToString();
                     var lsIPv6 = new List<IPAddress>();
@@ -112,12 +180,15 @@ public partial class TcpConnectionListener
                             }
                         }
                     }
+
                     var customIp = lsIPv4.Count >= 1 || lsIPv6.Count >= 1;
+
                     foreach (var str in jeHosts.EnumerateArray())
                     {
                         var splitArray = str.ToString().Trim().Split("->", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
                         var host = splitArray[0].Trim();
                         if (string.IsNullOrEmpty(host) || host.StartsWith('#')) continue;
+
                         var branch = splitArray.Length >= 2 ? splitArray[1].Trim() : null;
                         SniProxy proyx = new()
                         {
@@ -127,6 +198,7 @@ public partial class TcpConnectionListener
                             IpAddressesV6 = lsIPv6.Count >= 1 ? lsIPv6.ToArray() : null,
                             UseCustomIpAddress = customIp
                         };
+
                         if (host.StartsWith('*'))
                         {
                             host = host[1..];
@@ -148,14 +220,42 @@ public partial class TcpConnectionListener
                 }
             }
         }
-        
-        req.CertificateExtensions.Add(sanBuilder.Build());
-        var utcNow = DateTimeOffset.UtcNow;
-        var cert = req.CreateSelfSigned(utcNow, utcNow.AddYears(1));
-        _certificate =  new X509Certificate2(cert.Export(X509ContentType.Pfx));
+
+        serverReq.CertificateExtensions.Add(sanBuilder.Build());
+
+        // Basic extensions
+        serverReq.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
+        serverReq.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, false));
+        serverReq.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection { new Oid("1.3.6.1.5.5.7.3.1") }, false)); // Server Authentication
+
+        // Load Root CA
+        using var caCert = new X509Certificate2(RootPfx, "", X509KeyStorageFlags.Exportable);
+
+        var notBefore = DateTimeOffset.UtcNow.AddMinutes(-5);
+        if (notBefore < caCert.NotBefore)
+            notBefore = caCert.NotBefore;
+
+        var notAfter = DateTimeOffset.UtcNow.AddYears(1);
+        if (notAfter > caCert.NotAfter)
+            notAfter = caCert.NotAfter;
+
+        // Issue server certificate
+        var serial = BitConverter.GetBytes(DateTime.UtcNow.Ticks);
+        var serverCertNoKey = serverReq.Create(caCert, notBefore, notAfter, serial);
+        var serverCert = serverCertNoKey.CopyWithPrivateKey(serverRsa);
+
+        // Generate full chain (Leaf + Root)
+        var exportCollection = new X509Certificate2Collection
+        {
+            serverCert,
+            caCert
+        };
+
+        var pfxBytes = exportCollection.Export(X509ContentType.Pfx, "");
+        _certificate = new X509Certificate2(pfxBytes!, "", X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
     }
     
-    public async Task<string> StartAsync()
+    public string Start()
     {
         var ipAddress = App.Settings.ListeningIp == "LocalIp"
             ? IPAddress.Parse(App.Settings.LocalIp)
@@ -179,56 +279,7 @@ public partial class TcpConnectionListener
             _serviceViewModel.IsListeningFailed = true;
             return string.Format(ResourceHelper.GetString("Service.Listening.TcpStartFailedDialogMessage"), ex.Message);
         }
-        
-        if (OperatingSystem.IsWindows())
-        {
-            X509Store store = new(StoreName.Root, StoreLocation.LocalMachine);
-            store.Open(OpenFlags.ReadWrite);
-            store.Add(_certificate!);
-            store.Close();
-        }
-        else if (OperatingSystem.IsMacOS())
-        {
-            //sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain yourcert.crt
-            // 导出为 .crt 文件（DER 格式）
-            var tempPath = Path.Combine(Path.GetTempPath(), "temp-cert.crt");
-            await File.WriteAllBytesAsync(tempPath, _certificate!.Export(X509ContentType.Cert));
-            
-            try
-            {
-                // 需要 sudo 执行
-                await CommandHelper.RunCommandAsync("security",
-                    $"add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain \"{tempPath}\"");
-            }
-            finally
-            {
-                // 删除临时文件
-                if (File.Exists(tempPath))
-                    File.Delete(tempPath);
-            }
 
-        }
-        else if (OperatingSystem.IsLinux())
-        {
-            // Export PEM from X509Certificate2
-            var raw = _certificate!.Export(X509ContentType.Cert);
-            var pem = "-----BEGIN CERTIFICATE-----\n"
-                      + Convert.ToBase64String(raw, Base64FormattingOptions.InsertLineBreaks)
-                      + "\n-----END CERTIFICATE-----\n";
-
-            // Target path (needs root)
-            var certPath = $"/usr/local/share/ca-certificates/{nameof(XboxDownload)}.crt";
-
-            // Write PEM file
-            if (File.Exists(certPath))
-                File.Delete(certPath);
-            await File.WriteAllTextAsync(certPath, pem);
-
-            await CommandHelper.RunCommandAsync("update-ca-certificates", "");
-
-            //Console.WriteLine("Certificate installed to Linux system trust store.");
-        }
-        
         _isSimplifiedChinese = App.Settings.Culture == "zh-Hans";
 
         _ = Task.Run(() => Listening(_httpSocket, false));
@@ -256,6 +307,7 @@ public partial class TcpConnectionListener
         _httpSocket = null;
         _httpsSocket = null;
         
+        /*
         if (OperatingSystem.IsWindows())
         {
             using X509Store store = new(StoreName.Root, StoreLocation.LocalMachine);
@@ -278,6 +330,7 @@ public partial class TcpConnectionListener
 
             _ = CommandHelper.RunCommandAsync("update-ca-certificates", "");
         }
+        */
     }
     
     private async Task Listening(Socket? socket, bool isHttps)
