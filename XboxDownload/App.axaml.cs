@@ -79,7 +79,7 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        TrayIconService.Initialize();
+        if (OperatingSystem.IsWindows()) TrayIconService.Initialize();
         Services = Setup.ConfigureServices();
 
         Ioc.Default.ConfigureServices(new ServiceCollection()

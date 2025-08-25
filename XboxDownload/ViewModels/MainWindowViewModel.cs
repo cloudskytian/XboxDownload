@@ -6,12 +6,14 @@ using CommunityToolkit.Mvvm.Input;
 using System;
 using System.IO;
 using System.Linq;
-using System.Net.Sockets;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DynamicData;
+using MsBox.Avalonia.Enums;
 using XboxDownload.Helpers.Network;
 using XboxDownload.Helpers.Resources;
+using XboxDownload.Helpers.System;
+using XboxDownload.Helpers.UI;
 using XboxDownload.Services;
 
 namespace XboxDownload.ViewModels;
@@ -146,6 +148,56 @@ public partial class MainWindowViewModel(
     }
     
     [RelayCommand]
+    private static async Task InstallRootCertificateAsync()
+    {
+        if (!OperatingSystem.IsWindows() && !Program.UnixUserIsRoot())
+        {
+            await DialogHelper.ShowInfoDialogAsync(
+                ResourceHelper.GetString("Menu.RootCertificate.DialogInstallTitle"),
+                ResourceHelper.GetString("Menu.RootCertificate.DialogFailedMessage"),
+                Icon.Error);
+            return;
+        }
+        
+        await CertificateHelper.CreateRootCertificate(true);
+        
+        if (File.Exists(CertificateHelper.RootPfx) && File.Exists(CertificateHelper.RootCrt))
+        {
+            await DialogHelper.ShowInfoDialogAsync(
+                ResourceHelper.GetString("Menu.RootCertificate.DialogInstallTitle"),
+                ResourceHelper.GetString("Menu.RootCertificate.DialogInstallMessage"),
+                Icon.Success);
+        }
+        else
+        {
+            await DialogHelper.ShowInfoDialogAsync(
+                ResourceHelper.GetString("Menu.RootCertificate.DialogInstallTitle"),
+                "证书安装失败。",
+                Icon.Error);
+        }
+    }
+    
+    [RelayCommand]
+    private static async Task UninstallRootCertificateAsync()
+    {
+        if (!OperatingSystem.IsWindows() && !Program.UnixUserIsRoot())
+        {
+            await DialogHelper.ShowInfoDialogAsync(
+                ResourceHelper.GetString("Menu.RootCertificate.DialogUninstallTitle"),
+                ResourceHelper.GetString("Menu.RootCertificate.DialogFailedMessage"),
+                Icon.Error);
+            return;
+        }
+
+        await CertificateHelper.DeleteRootCertificateAsync();
+
+        await DialogHelper.ShowInfoDialogAsync(
+            ResourceHelper.GetString("Menu.RootCertificate.DialogUninstallTitle"),
+            ResourceHelper.GetString("Menu.RootCertificate.DialogUninstallMessage"),
+            Icon.Success);
+    }
+    
+    [RelayCommand]
     private static async Task ExitAsync()
     {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -160,51 +212,6 @@ public partial class MainWindowViewModel(
                 
                 var toolsVm = mainVm.ToolsViewModel;
                 toolsVm.Dispose();
-            }
-            
-            // macOS/Linux 退出时清理 Socket 文件
-            if (!OperatingSystem.IsWindows())
-            {
-                try
-                {
-                    using var client = new Socket(AddressFamily.Unix, SocketType.Stream, 0);
-                    var path = Path.Combine(Path.GetTempPath(), $"{nameof(XboxDownload)}.sock");
-                    // ReSharper disable once MethodHasAsyncOverload
-                    client.Connect(new UnixDomainSocketEndPoint(path));
-                }
-                catch
-                {
-                    // ignored
-                }
-
-                try
-                {
-                    if (Program.Listener is not null)
-                    {
-                        try { Program.Listener.Shutdown(SocketShutdown.Both); }
-                        catch
-                        {
-                            // ignored
-                        }
-                        Program.Listener?.Close();
-                        Program.Listener = null;
-                    }
-                }
-                catch
-                {
-                    // ignored
-                }
-                
-                try
-                {
-                    var socketPath = Path.Combine(Path.GetTempPath(), $"{nameof(XboxDownload)}.sock");
-                    if (File.Exists(socketPath))
-                        File.Delete(socketPath);
-                }
-                catch
-                {
-                    // ignored
-                }
             }
             
             desktop.Shutdown();

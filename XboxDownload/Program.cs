@@ -32,7 +32,7 @@ sealed class Program
             }
             else
             {
-                TrySendUnixWakeup();
+                Console.WriteLine("This program is already running. Please avoid running multiple instances.");
             }
             return;
         }
@@ -41,55 +41,18 @@ sealed class Program
         {
             App.ShowWindowMessageId = RegisterWindowMessage("XboxDownload_ShowWindow");
         }
-        else
-        {
-            StartUnixSocketListener();
-        }
 
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
-
-    public static Socket? Listener;
-
-    private static void StartUnixSocketListener()
+    
+    public static bool UnixUserIsRoot()
     {
-        if (File.Exists(SocketPath)) File.Delete(SocketPath);
-
-        Listener = new Socket(AddressFamily.Unix, SocketType.Stream, 0);
-        Listener.Bind(new UnixDomainSocketEndPoint(SocketPath));
-        Listener.Listen(1);
-
-        new Thread(() =>
-            {
-                while (true)
-                {
-                    try
-                    {
-                        using var client = Listener.Accept();
-                        App.UnixWakeupRequested?.Invoke();
-                    }
-                    catch
-                    {
-                        break;
-                    }
-                }
-            })
-            { IsBackground = true }.Start();
+        if (OperatingSystem.IsWindows()) return false;
+        return getuid() == 0;
     }
 
-    private static void TrySendUnixWakeup()
-    {
-        try
-        {
-            using var client = new Socket(AddressFamily.Unix, SocketType.Stream, 0);
-            client.Connect(new UnixDomainSocketEndPoint(SocketPath));
-            client.Send(new byte[] { 1 });
-        }
-        catch
-        {
-            // ignored
-        }
-    }
+    [DllImport("libc")]
+    private static extern uint getuid();
 
     private static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()

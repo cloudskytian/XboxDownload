@@ -772,8 +772,8 @@ public class DnsConnectionListener(ServiceViewModel serviceViewModel)
         }
         else if (OperatingSystem.IsLinux())
         {
-            var user = Environment.GetEnvironmentVariable("SUDO_USER") ?? Environment.UserName;
-            if (user != "root") return;
+            if (!Program.UnixUserIsRoot()) return;
+            
             await CommandHelper.RunCommandAsync("systemctl", "restart systemd-resolved");
         }
     }

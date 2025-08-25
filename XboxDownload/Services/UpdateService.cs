@@ -118,13 +118,14 @@ public static partial class UpdateService
             Architecture.Arm => "arm",
             _ => "unknown"
         };
-
+        
         var fileName = $"{nameof(XboxDownload)}-{systemLabel}-{archLabel}.zip";
         
         var fastestUrl = await HttpClientHelper.GetFastestProxy(Proxies1.Concat(Proxies2).ToArray(),
             $"{Project}/releases/download/{tagName}/{fileName}",
             new Dictionary<string, string> { { "Range", "bytes=0-10239" } },
             6000);
+        
         if (fastestUrl != null)
         {
             using var response = await HttpClientHelper.SendRequestAsync(fastestUrl, timeout: 180000, token: CancellationToken.None);
@@ -137,6 +138,7 @@ public static partial class UpdateService
                 {
                     if (Directory.Exists(tempDirectory))
                         Directory.Delete(tempDirectory, recursive: true);
+                    
                     Directory.CreateDirectory(tempDirectory);
                     
                     var buffer = await response.Content.ReadAsByteArrayAsync(CancellationToken.None);
@@ -160,18 +162,54 @@ public static partial class UpdateService
                         }
 
                         var dirs = new DirectoryInfo(tempDirectory).GetDirectories();
-                        if (dirs.Length == 1)
+                        foreach (var dir in dirs)
                         {
-                            if (serviceVm.IsListening) 
-                                await serviceVm.ToggleListeningAsync();
-                            
-                            var exePath = OperatingSystem.IsWindows() ? Process.GetCurrentProcess().MainModule?.FileName : Environment.GetCommandLineArgs()[0];
-                            
-                            var cmd = $"chcp 65001\r\nchoice /t 3 /d y /n >nul\r\nxcopy \"{dirs[0]}\" \"{Path.GetDirectoryName(exePath)}\" /s /e /y\r\n\"{exePath}\"\r\nrd /s/q \"{tempDirectory}\"";
-                            var cmdPath = Path.Combine(tempDirectory, "update.cmd");
-                            await File.WriteAllTextAsync(cmdPath, cmd, CancellationToken.None);
-                            _ = CommandHelper.RunCommandAsync("cmd.exe", $"/c \"{cmdPath}\"");
-                            Process.GetCurrentProcess().Kill();
+                            if (dir.Name.StartsWith(nameof(XboxDownload)))
+                            {
+                                if (serviceVm.IsListening)
+                                    await serviceVm.ToggleListeningAsync();
+
+                                if (OperatingSystem.IsWindows())
+                                {
+                                    var exePath = Process.GetCurrentProcess().MainModule?.FileName;
+
+                                    var cmd = $"chcp 65001\r\nchoice /t 3 /d y /n >nul\r\nxcopy \"{dir.FullName}\" \"{Path.GetDirectoryName(exePath)}\" /s /e /y\r\n\"{exePath}\"\r\nrd /s/q \"{tempDirectory}\"";
+                                    var cmdPath = Path.Combine(tempDirectory, "update.cmd");
+                                    await File.WriteAllTextAsync(cmdPath, cmd, CancellationToken.None);
+                                    _ = CommandHelper.RunCommandAsync("cmd.exe", $"/c \"{cmdPath}\"");
+                                    Process.GetCurrentProcess().Kill();
+                                }
+
+                                if (OperatingSystem.IsMacOS())
+                                {
+                                    var exePath = Process.GetCurrentProcess().MainModule?.FileName;
+                                    
+                                    var script = $@"
+#!/bin/bash
+echo
+echo ""Due to system security policies, the updated application must complete code-signing verification before it can start properly. Please wait about one minute before launching.""
+echo ""由于系统安全策略，更新后的应用需要完成签名校验才能正常启动，请在约一分钟后再尝试运行。""
+echo
+sleep 3
+cp -R ""{dir.FullName}""/. ""{Path.GetDirectoryName(exePath)}""
+APP_PATH=""{exePath}""
+xattr -dr com.apple.quarantine ""$APP_PATH""
+if [ ""$(id -u)"" -eq 0 ]; then
+    sudo ""$APP_PATH""
+else
+    open ""$APP_PATH""
+fi
+rm -rf ""{tempDirectory}""
+".Replace("\r\n", "\n");
+                                    var scriptPath = Path.Combine(tempDirectory, "update.sh");
+                                    await File.WriteAllTextAsync(scriptPath, script, CancellationToken.None);
+                                    await CommandHelper.RunCommandAsync("chmod", $"+x \"{scriptPath}\"");
+                                    _ = CommandHelper.RunCommandAsync("/bin/bash", $"\"{scriptPath}\"");
+                                    Process.GetCurrentProcess().Kill();
+                                }
+                            }
+
+                            break;
                         }
                     }
                 }
@@ -192,14 +230,13 @@ public static partial class UpdateService
             ResourceHelper.GetString("Update.DownloadFailed"),
             Icon.Error);
     }
-
     
     [GeneratedRegex(@"/releases/tag/(?<tag_name>[^\d]*(?<version>\d+(\.\d+){2,3}))$", RegexOptions.Compiled)]
     private static partial Regex GitHubTagRegex();
     
     public static async Task DownloadIpAsync(FileInfo fi, string keyword = "")
     {
-        string url = $"{Project.Replace("https://github.com", "https://raw.githubusercontent.com")}/refs/heads/master/IP/{fi.Name}";
+        var url = $"{Project.Replace("https://github.com", "https://raw.githubusercontent.com")}/refs/heads/master/IP/{fi.Name}";
         if(string.IsNullOrEmpty(keyword)) keyword = fi.Name[3..^4];
         using var cts = new CancellationTokenSource();
         

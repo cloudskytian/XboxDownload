@@ -10,6 +10,14 @@
     <x:String x:Key="Menu.Theme.Light">浅色主题</x:String>
     <x:String x:Key="Menu.Theme.Dark">深色主题</x:String>
     <x:String x:Key="Menu.RunAtStartup">开机启动</x:String>
+    <x:String x:Key="Menu.RootCertificate">系统证书</x:String>
+    <x:String x:Key="Menu.RootCertificate.Install">安装/重装根证书</x:String>
+    <x:String x:Key="Menu.RootCertificate.Uninstall">卸载根证书</x:String>
+    <x:String x:Key="Menu.RootCertificate.DialogInstallTitle">安装根证书</x:String>
+    <x:String x:Key="Menu.RootCertificate.DialogInstallMessage">根证书安装完成，重启监听服务即可生效。</x:String>
+    <x:String x:Key="Menu.RootCertificate.DialogUninstallTitle">卸载根证书</x:String>
+    <x:String x:Key="Menu.RootCertificate.DialogUninstallMessage">根证书已成功卸载。</x:String>
+    <x:String x:Key="Menu.RootCertificate.DialogFailedMessage">此操作需要管理员权限.</x:String>
     <x:String x:Key="Menu.Show">显示</x:String>
     <x:String x:Key="Menu.Exit">退出</x:String>
     <x:String x:Key="Menu.Help">帮助</x:String>

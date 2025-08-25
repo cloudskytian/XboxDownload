@@ -23,6 +23,24 @@ public static class CommandHelper
         process.Start();
         await process.WaitForExitAsync();
     }
+    
+    public static async Task<int> RunCommandAsync2(string fileName, string arguments, bool useShellExecute = false)
+    {
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = arguments,
+            RedirectStandardOutput = false,
+            RedirectStandardError = false,
+            UseShellExecute = useShellExecute,
+            CreateNoWindow = true
+        };
+
+        process.Start();
+        await process.WaitForExitAsync();
+        return process.ExitCode;
+    }
 
     public static async Task<List<string>> RunCommandWithOutputAsync(string fileName, string arguments)
     {

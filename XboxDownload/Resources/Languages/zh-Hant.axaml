@@ -10,6 +10,14 @@
     <x:String x:Key="Menu.Theme.Light">淺色主題</x:String>
     <x:String x:Key="Menu.Theme.Dark">深色主題</x:String>
     <x:String x:Key="Menu.RunAtStartup">開機啟動</x:String>
+    <x:String x:Key="Menu.RootCertificate">系統憑證</x:String>
+    <x:String x:Key="Menu.RootCertificate.Install">安裝/重裝根憑證</x:String>
+    <x:String x:Key="Menu.RootCertificate.Uninstall">卸載根憑證</x:String>
+    <x:String x:Key="Menu.RootCertificate.DialogInstallTitle">安裝根憑證</x:String>
+    <x:String x:Key="Menu.RootCertificate.DialogInstallMessage">根憑證已成功安裝，重啟監聽服務即可生效。</x:String>
+    <x:String x:Key="Menu.RootCertificate.DialogUninstallTitle">卸載根憑證</x:String>
+    <x:String x:Key="Menu.RootCertificate.DialogUninstallMessage">根憑證已成功卸載。</x:String>
+    <x:String x:Key="Menu.RootCertificate.DialogFailedMessage">此操作需要管理員權限。</x:String>
     <x:String x:Key="Menu.Show">顯示</x:String>
     <x:String x:Key="Menu.Exit">退出</x:String>
     <x:String x:Key="Menu.Help">幫助</x:String>

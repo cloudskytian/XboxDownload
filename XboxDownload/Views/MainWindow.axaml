@@ -27,6 +27,10 @@
                         <MenuItem Header="{DynamicResource Menu.Theme.Light}" Command="{Binding SwitchThemeCommand}" CommandParameter="Light"/>
                         <MenuItem Header="{DynamicResource Menu.Theme.Dark}" Command="{Binding SwitchThemeCommand}" CommandParameter="Dark"/>
                     </MenuItem>
+                    <MenuItem Header="{DynamicResource Menu.RootCertificate}" IsVisible="{Binding !IsWindows}">
+                        <MenuItem Header="{DynamicResource Menu.RootCertificate.Install}" Command="{Binding InstallRootCertificateCommand}"/>
+                        <MenuItem Header="{DynamicResource Menu.RootCertificate.Uninstall}" Command="{Binding UninstallRootCertificateCommand}"/>
+                    </MenuItem>
                     <MenuItem Header="{DynamicResource Menu.RunAtStartup}" 
                               IsVisible="{Binding IsWindows}"
                               Click="ShowStartupSettingsDialogAsync"/>
